@@ -1,5 +1,7 @@
 {
-  "name": "Extrator de Capturas de Tela da Web",
-  "description": "Um aplicativo para extrair capturas de tela de páginas da web a partir de URLs. Ele pode processar vários URLs de uma vez, facilitando a coleta de visuais para cartões de ferramentas de IA ou outro conteúdo da web.",
-  "requestFramePermissions": []
+  "name": "AI Headshot Photographer",
+  "description": "Upload a selfie, choose a style, and let AI generate a professional headshot for you using Gemini.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
