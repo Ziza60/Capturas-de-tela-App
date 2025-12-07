@@ -1,0 +1,71 @@
+name: Unzip and Replace Repository (create PR)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  unzip-and-create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure unzip and rsync are available
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip rsync
+
+      - name: Extract zip to temp dir and prepare worktree
+        run: |
+          set -e
+          ZIP_NAME='ai-headshot-photographer (9).zip'
+          if [ ! -f "$ZIP_NAME" ]; then
+            echo "Zip file '$ZIP_NAME' not found in the repository root"
+            exit 1
+          fi
+          TMP_DIR=$(mktemp -d)
+          unzip -o "$ZIP_NAME" -d "$TMP_DIR"
+          entries=("$TMP_DIR"/*)
+          if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then
+            SRC="${entries[0]}"
+          else
+            SRC="$TMP_DIR"
+          fi
+          echo "SRC=$SRC"
+          # create a temporary worktree so we can commit without touching current workspace
+          WORKDIR=$(mktemp -d)
+          git worktree add "$WORKDIR" HEAD
+          cd "$WORKDIR"
+          # copy from SRC into worktree root but DO NOT delete .github (protect workflows)
+          rsync -av --delete --exclude='.git' --exclude='.github' --exclude="$ZIP_NAME" "$SRC"/ .
+
+      - id: create_branch
+        name: Create branch if changes and commit
+        run: |
+          cd "$WORKDIR"
+          if git diff --quiet --exit-code; then
+            echo "no_changes=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          BRANCH="replace-from-zip-$(date +%Y%m%d%H%M%S)"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "Replace repository contents from $ZIP_NAME"
+          git push --set-upstream origin "$BRANCH"
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: steps.create_branch.outputs.no_changes != 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.create_branch.outputs.branch }}
+          title: "Replace repository contents from zip"
+          body: "This PR replaces repository contents with files from $ZIP_NAME (created by workflow)."
+          base: main
