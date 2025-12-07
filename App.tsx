@@ -6,23 +6,24 @@ import ResultDisplay from './components/ResultDisplay';
 import BatchResults from './components/BatchResults';
 import TeamSettingsPanel from './components/TeamSettings';
 import LogoAdjustModal from './components/LogoAdjustModal';
-import { generateHeadshot, generateSuggestions } from './services/geminiService';
+import AnalysisModal from './components/AnalysisModal';
+import { generateHeadshot, generateSuggestions, analyzeHeadshot } from './services/geminiService';
 import { overlayLogo } from './utils/imageProcessing';
-import { ASPECT_RATIO_OPTIONS, GLASSES_OPTIONS, HEADSHOT_STYLES, CLOTHING_OPTIONS, TEAM_UNIFORMS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS } from './constants';
-import type { AspectRatioOption, GlassesOption, StyleOption, UploadedFile, ClothingOption, BatchItem, UserProfile, LightingOption, ExpressionOption, BeautyOption, TeamSettings } from './types';
+import { ASPECT_RATIO_OPTIONS, GLASSES_OPTIONS, HEADSHOT_STYLES, CLOTHING_OPTIONS, TEAM_UNIFORMS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS, POSE_OPTIONS } from './constants';
+import type { AspectRatioOption, GlassesOption, StyleOption, UploadedFile, ClothingOption, BatchItem, UserProfile, LightingOption, ExpressionOption, BeautyOption, TeamSettings, PoseOption, CameraSettings } from './types';
 import GlassesOptions from './components/GlassesOptions';
 import ClothingOptions from './components/ClothingOptions';
 import SuggestionBox from './components/SuggestionBox';
 import AspectRatioSelector from './components/AspectRatioSelector';
 import CreationsGallery from './components/CreationsGallery';
-import AdvancedOptions from './components/AdvancedOptions';
-import { UsersIcon } from './components/icons';
+import StudioControls from './components/AdvancedOptions'; 
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
 
 const App: React.FC = () => {
   // --- SINGLE MODE STATE ---
-  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
+  // Supports array for Multi-Shot Reference (even if just 1 file)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]); 
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [rawGeneratedImage, setRawGeneratedImage] = useState<string | null>(null);
   
@@ -32,11 +33,15 @@ const App: React.FC = () => {
   const [selectedClothingOption, setSelectedClothingOption] = useState<ClothingOption | null>(CLOTHING_OPTIONS[0]);
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatioOption | null>(ASPECT_RATIO_OPTIONS[0]);
   
-  // --- ADVANCED OPTIONS ---
-  const [userProfile, setUserProfile] = useState<UserProfile>({ ageGroup: '', gender: '', ethnicity: '' });
+  // --- ADVANCED STUDIO OPTIONS ---
+  // Initial likeness threshold set to 60 (Balanced)
+  const [userProfile, setUserProfile] = useState<UserProfile>({ ageGroup: '', gender: '', ethnicity: '', likenessThreshold: 60 });
+  const [cameraSettings, setCameraSettings] = useState<CameraSettings>({ depthOfField: 50, angle: 'eye-level' });
+
   const [selectedLighting, setSelectedLighting] = useState<LightingOption>(LIGHTING_OPTIONS[0]);
   const [selectedExpression, setSelectedExpression] = useState<ExpressionOption>(EXPRESSION_OPTIONS[0]);
   const [selectedBeauty, setSelectedBeauty] = useState<BeautyOption>(BEAUTY_OPTIONS[0]);
+  const [selectedPose, setSelectedPose] = useState<PoseOption>(POSE_OPTIONS[0]); 
   const [is4kMode, setIs4kMode] = useState<boolean>(false);
 
   // --- UI STATE ---
@@ -58,6 +63,8 @@ const App: React.FC = () => {
     uniformId: TEAM_UNIFORMS[0].id,
     framingStyle: 'chest-up',
     filenamePrefix: '',
+    backgroundType: 'default',
+    backgroundColor: '#FFFFFF',
     logoScale: 12,
     logoOffsetX: 0,
     logoOffsetY: 0
@@ -65,6 +72,7 @@ const App: React.FC = () => {
 
   // Modal State
   const [editingBatchItem, setEditingBatchItem] = useState<BatchItem | null>(null);
+  const [analyzingBatchItem, setAnalyzingBatchItem] = useState<BatchItem | null>(null); // New state for Analysis Modal
 
   // Sync ref with state
   useEffect(() => {
@@ -80,16 +88,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const fetchSuggestions = async () => {
-      if (uploadedFile && selectedStyle && !isBatchMode) {
+      if (uploadedFiles.length > 0 && selectedStyle && !isBatchMode) {
         setIsSuggestionsLoading(true);
         setSuggestions([]);
-        const result = await generateSuggestions(uploadedFile, selectedStyle);
+        // Use primary image for suggestions
+        const result = await generateSuggestions(uploadedFiles[0], selectedStyle);
         setSuggestions(result);
         setIsSuggestionsLoading(false);
       }
     };
     fetchSuggestions();
-  }, [uploadedFile, selectedStyle, isBatchMode]);
+  }, [uploadedFiles, selectedStyle, isBatchMode]);
 
   // --- GLOBAL REAL-TIME PREVIEW (BATCH & SINGLE) ---
   useEffect(() => {
@@ -122,10 +131,12 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [teamSettings, isBatchMode, rawGeneratedImage]); 
 
-  const handleImageUpload = (file: UploadedFile | UploadedFile[]) => {
-    if (isBatchMode || Array.isArray(file)) {
-        const filesToAdd = Array.isArray(file) ? file : [file];
-        const newQueue: BatchItem[] = filesToAdd.map(f => ({
+  const handleImageUpload = (fileOrFiles: UploadedFile | UploadedFile[]) => {
+    const files = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
+
+    if (isBatchMode) {
+        // In Batch Mode, every file is a NEW person
+        const newQueue: BatchItem[] = files.map(f => ({
             id: Math.random().toString(36).substring(7),
             file: f,
             status: 'pending',
@@ -135,7 +146,10 @@ const App: React.FC = () => {
         // APPEND to existing queue instead of replacing
         setBatchQueue(prev => [...prev, ...newQueue]);
     } else {
-        setUploadedFile(file);
+        // In Single Mode, files are Multi-Shot References for ONE person
+        // If ImageUploader passes multiple files (Multi-Shot), we set them all.
+        // If it passes one (Single Mode), we replace the state.
+        setUploadedFiles(files);
         setGeneratedImage(null);
         setRawGeneratedImage(null);
         setSuggestions([]);
@@ -145,10 +159,22 @@ const App: React.FC = () => {
 
   const handleStyleSelect = (style: StyleOption) => {
     setSelectedStyle(style);
+    
+    if (style.category === 'travel_scenery' || style.category === 'halloween_fantasy') {
+        const autoOption = CLOTHING_OPTIONS.find(c => c.id === 'auto-style');
+        if (autoOption) {
+            setSelectedClothingOption(autoOption);
+        }
+    } else {
+        const autoOption = CLOTHING_OPTIONS.find(c => c.id === 'auto-style');
+        if (selectedClothingOption?.id === autoOption?.id) {
+             setSelectedClothingOption(CLOTHING_OPTIONS[0]); 
+        }
+    }
   };
   
   const clearImage = () => {
-    setUploadedFile(null);
+    setUploadedFiles([]);
     setBatchQueue([]);
     setGeneratedImage(null);
     setRawGeneratedImage(null);
@@ -164,6 +190,8 @@ const App: React.FC = () => {
           setIsBatchMode(isTeam);
           setSelectedGlassesOption(GLASSES_OPTIONS[0]);
           setSelectedAspectRatio(ASPECT_RATIO_OPTIONS[0]);
+          // SAFETY FEATURE: Reset 4K mode to avoid accidental bulk costs
+          setIs4kMode(false);
       }
   }
 
@@ -177,6 +205,11 @@ const App: React.FC = () => {
         const uniform = TEAM_UNIFORMS.find(u => u.id === teamSettings.uniformId);
         if (uniform) activeClothingOption = uniform;
     }
+    
+    // Determine background color
+    const effectiveBackgroundColor = (isBatchMode && teamSettings.backgroundType === 'solid') 
+        ? teamSettings.backgroundColor 
+        : undefined;
 
     const itemsToProcessIndices = batchQueue.map((item, index) => item.status === 'pending' ? index : -1).filter(i => i !== -1);
 
@@ -198,8 +231,11 @@ const App: React.FC = () => {
                 selectedLighting,
                 selectedExpression,
                 selectedBeauty,
+                selectedPose,
                 is4kMode,
-                isBatchMode ? teamSettings.framingStyle : undefined
+                isBatchMode ? teamSettings.framingStyle : undefined,
+                effectiveBackgroundColor,
+                cameraSettings
             );
 
             let finalImage = rawAIResult;
@@ -222,7 +258,7 @@ const App: React.FC = () => {
                     ...item, 
                     status: 'completed', 
                     resultImage: finalImage,
-                    rawImage: rawAIResult, // IMPORTANT: Save raw for editing
+                    rawImage: rawAIResult,
                     finalFileName: finalName,
                     error: undefined
                 } : item
@@ -263,7 +299,7 @@ const App: React.FC = () => {
         return;
     }
 
-    if (!uploadedFile) {
+    if (uploadedFiles.length === 0) {
       setError("Por favor, carregue uma imagem primeiro.");
       return;
     }
@@ -273,19 +309,28 @@ const App: React.FC = () => {
     setRawGeneratedImage(null);
     setError(null);
 
+    // Determine background color
+    const effectiveBackgroundColor = (isBatchMode && teamSettings.backgroundType === 'solid') 
+        ? teamSettings.backgroundColor 
+        : undefined;
+
     try {
+      // Pass the entire array of uploadedFiles for Multi-Shot Reference
       const rawResult = await generateHeadshot(
-        uploadedFile, 
+        uploadedFiles, 
         selectedStyle, 
         selectedGlassesOption, 
-        selectedClothingOption,
+        selectedClothingOption, 
         selectedAspectRatio,
         userProfile,
         selectedLighting,
         selectedExpression,
         selectedBeauty,
+        selectedPose,
         is4kMode,
-        isBatchMode ? teamSettings.framingStyle : undefined
+        isBatchMode ? teamSettings.framingStyle : undefined,
+        effectiveBackgroundColor,
+        cameraSettings
       );
 
       setRawGeneratedImage(rawResult);
@@ -302,12 +347,12 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [uploadedFile, selectedStyle, selectedGlassesOption, selectedClothingOption, selectedAspectRatio, isBatchMode, batchQueue, userProfile, selectedLighting, selectedExpression, selectedBeauty, is4kMode, teamSettings]);
+  }, [uploadedFiles, selectedStyle, selectedGlassesOption, selectedClothingOption, selectedAspectRatio, isBatchMode, batchQueue, userProfile, selectedLighting, selectedExpression, selectedBeauty, selectedPose, is4kMode, teamSettings, cameraSettings]);
   
   const handleSurpriseMe = () => {
     if (HEADSHOT_STYLES.length > 0) {
       const randomIndex = Math.floor(Math.random() * HEADSHOT_STYLES.length);
-      setSelectedStyle(HEADSHOT_STYLES[randomIndex]);
+      handleStyleSelect(HEADSHOT_STYLES[randomIndex]);
     }
   };
 
@@ -333,6 +378,30 @@ const App: React.FC = () => {
       }
   };
 
+  // --- BATCH ANALYSIS LOGIC ---
+  const handleAnalyzeBatchItem = async (item: BatchItem) => {
+      setAnalyzingBatchItem(item); // Open Modal Immediately
+
+      // If already analyzed, do nothing (modal will show data)
+      if (item.analysis) return;
+
+      // If not, fetch analysis
+      if (item.resultImage) {
+          try {
+              const result = await analyzeHeadshot(item.resultImage);
+              // Update Queue with result
+              setBatchQueue(current => current.map(i => 
+                  i.id === item.id ? { ...i, analysis: result } : i
+              ));
+              // Update currently viewed item so modal re-renders with data
+              setAnalyzingBatchItem(prev => prev?.id === item.id ? { ...prev, analysis: result } : prev);
+          } catch (e) {
+              console.error("Analysis failed", e);
+              // Optionally handle error state in modal
+          }
+      }
+  };
+
   const handleDownloadZip = async () => {
       const completedItems = batchQueue.filter(i => i.status === 'completed' && i.resultImage);
       if (completedItems.length === 0) return;
@@ -350,7 +419,7 @@ const App: React.FC = () => {
   };
 
   const aspectRatioClassName = selectedAspectRatio?.className || 'aspect-square';
-  const hasFile = isBatchMode ? batchQueue.length > 0 : !!uploadedFile;
+  const hasFile = isBatchMode ? batchQueue.length > 0 : uploadedFiles.length > 0;
   const bgClass = isBatchMode ? 'bg-slate-900' : 'bg-gray-900';
   const textGradient = isBatchMode 
     ? 'bg-gradient-to-r from-indigo-400 to-white' 
@@ -372,7 +441,7 @@ const App: React.FC = () => {
                 : 'Transforme qualquer foto em um retrato profissional em segundos.'}
           </p>
 
-          {/* MODE SELECTOR TABS (VISIBLE ON MOBILE) */}
+          {/* MODE SELECTOR TABS */}
           <div className="flex bg-gray-800 p-1 rounded-xl border border-gray-700 w-full max-w-md mx-auto relative z-10">
               <button
                 onClick={() => switchMode('individual')}
@@ -403,7 +472,7 @@ const App: React.FC = () => {
           <div className="flex flex-col space-y-8">
             <ImageUploader 
               onImageUpload={handleImageUpload} 
-              uploadedFile={uploadedFile}
+              uploadedFile={uploadedFiles}
               clearImage={clearImage}
               isBatchMode={isBatchMode}
               batchCount={batchQueue.length}
@@ -438,15 +507,19 @@ const App: React.FC = () => {
 
                 {selectedStyle && (
                   <>
-                    <AdvancedOptions 
+                    <StudioControls 
                       userProfile={userProfile}
                       onProfileChange={setUserProfile}
+                      cameraSettings={cameraSettings}
+                      onCameraChange={setCameraSettings}
                       selectedLighting={selectedLighting}
                       onLightingChange={setSelectedLighting}
                       selectedExpression={selectedExpression}
                       onExpressionChange={setSelectedExpression}
                       selectedBeauty={selectedBeauty}
                       onBeautyChange={setSelectedBeauty}
+                      selectedPose={selectedPose}
+                      onPoseChange={setSelectedPose}
                       is4kMode={is4kMode}
                       onToggle4k={setIs4kMode}
                       isBatchMode={isBatchMode}
@@ -502,6 +575,7 @@ const App: React.FC = () => {
                     onEditItem={handleEditBatchItem}
                     onRetryItem={handleRetryItem}
                     onDownloadZip={handleDownloadZip}
+                    onAnalyzeItem={handleAnalyzeBatchItem}
                  />
             ) : (
                 <>
@@ -510,7 +584,7 @@ const App: React.FC = () => {
                         generatedImage={generatedImage}
                         error={error}
                         aspectRatioClassName={aspectRatioClassName}
-                        originalImage={uploadedFile}
+                        originalImage={uploadedFiles.length > 0 ? uploadedFiles[0] : null}
                     />
                     <CreationsGallery
                         creations={creationsHistory}
@@ -529,6 +603,16 @@ const App: React.FC = () => {
                 currentSettings={teamSettings}
                 onSave={handleSaveBatchEdit}
                 onClose={() => setEditingBatchItem(null)}
+            />
+        )}
+        
+        {/* BATCH ANALYSIS MODAL */}
+        {analyzingBatchItem && analyzingBatchItem.resultImage && (
+            <AnalysisModal
+                imageSrc={analyzingBatchItem.resultImage}
+                data={analyzingBatchItem.analysis || null}
+                isLoading={!analyzingBatchItem.analysis}
+                onClose={() => setAnalyzingBatchItem(null)}
             />
         )}
 
