@@ -1,5 +1,5 @@
 
-export type StyleCategory = 'professional' | 'casual_natural' | 'creative_artistic' | 'travel_scenery' | 'halloween_fantasy' | 'others';
+export type StyleCategory = 'professional' | 'casual_natural' | 'creative_artistic' | 'travel_scenery' | 'halloween_fantasy' | 'time_travel' | 'others';
 
 export interface StyleOption {
   id: string;
@@ -45,16 +45,29 @@ export interface ExpressionOption {
   prompt: string;
 }
 
+export interface PoseOption {
+    id: string;
+    label: string;
+    prompt: string;
+    icon?: string;
+}
+
 export interface BeautyOption {
   id: string;
   label: string;
   prompt: string;
 }
 
+export interface CameraSettings {
+    depthOfField: number; // 0 (Blurry/Bokeh) to 100 (Sharp)
+    angle: 'eye-level' | 'low-angle' | 'high-angle';
+}
+
 export interface UserProfile {
   ageGroup: string;
   gender: string;
   ethnicity: string;
+  likenessThreshold: number; // 0 to 100 (Creative vs Strict)
 }
 
 export interface CustomizationOption {
@@ -69,6 +82,18 @@ export interface CustomizationOption {
 
 export type BatchStatus = 'pending' | 'processing' | 'completed' | 'error';
 
+export interface ImageAnalysisResult {
+    scores: {
+        professionalism: number; // 0-100
+        approachability: number; // 0-100
+        creativity: number; // 0-100
+        confidence: number; // 0-100
+    };
+    archetype: string; // e.g., "The Visionary Leader", "The Friendly Expert"
+    feedback: string[];
+    linkedinBio: string;
+}
+
 export interface BatchItem {
   id: string;
   file: UploadedFile;
@@ -77,6 +102,7 @@ export interface BatchItem {
   rawImage: string | null; // Cópia limpa sem logo para reedição
   error?: string;
   finalFileName?: string;
+  analysis?: ImageAnalysisResult; // New: Stores AI analysis per item
 }
 
 export type LogoPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'chest-left' | 'chest-right';
@@ -89,6 +115,9 @@ export interface TeamSettings {
   uniformId: string | null;
   framingStyle: FramingStyle;
   filenamePrefix: string;
+  // Background
+  backgroundType: 'default' | 'solid';
+  backgroundColor: string; // Hex code
   // Fine Tuning
   logoScale: number;   // Percentage of image width (default ~12)
   logoOffsetX: number; // Percentage offset X (-20 to 20)

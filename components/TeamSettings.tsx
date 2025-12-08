@@ -9,6 +9,14 @@ interface TeamSettingsProps {
   onUpdate: (settings: TeamSettings) => void;
 }
 
+const BACKGROUND_PRESETS = [
+  { label: 'Branco', color: '#FFFFFF' },
+  { label: 'Cinza', color: '#808080' },
+  { label: 'Preto', color: '#000000' },
+  { label: 'Navy', color: '#000080' },
+  { label: 'Azul', color: '#1a73e8' },
+];
+
 const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,7 +57,7 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate }) 
         {/* 1. Padronização de Uniforme */}
         <div>
           <label className="block text-sm font-semibold text-indigo-200 mb-3 uppercase tracking-wider">
-            2. Uniforme Padronizado
+            1. Uniforme Padronizado
           </label>
           <div className="grid grid-cols-1 gap-2">
             {TEAM_UNIFORMS.map((uniform) => (
@@ -70,11 +78,75 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate }) 
             ))}
           </div>
         </div>
+        
+        {/* 2. Fundo (Background) */}
+        <div>
+           <label className="block text-sm font-semibold text-indigo-200 mb-3 uppercase tracking-wider">
+                2. Fundo Corporativo (Background)
+           </label>
+           
+           <div className="flex bg-slate-700/50 rounded-lg p-1 border border-slate-600 mb-3">
+              <button
+                onClick={() => onUpdate({ ...settings, backgroundType: 'default' })}
+                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
+                    settings.backgroundType === 'default'
+                    ? 'bg-slate-500 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                 Padrão do Estilo
+              </button>
+              <button
+                onClick={() => onUpdate({ ...settings, backgroundType: 'solid' })}
+                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
+                    settings.backgroundType === 'solid'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                 Cor Sólida (Brand)
+              </button>
+           </div>
 
-        {/* 2. Enquadramento (Framing) - NEW IMAGEKIT-LIKE FEATURE */}
+           {settings.backgroundType === 'solid' && (
+             <div className="animate-fade-in bg-slate-700/30 p-3 rounded-lg border border-slate-600">
+                <div className="flex items-center gap-3 mb-3">
+                    <input 
+                        type="color" 
+                        value={settings.backgroundColor}
+                        onChange={(e) => onUpdate({ ...settings, backgroundColor: e.target.value })}
+                        className="w-10 h-10 rounded cursor-pointer border-none bg-transparent"
+                    />
+                    <div className="flex-grow">
+                         <label className="text-xs text-gray-400 block">Hex Code</label>
+                         <input 
+                            type="text" 
+                            value={settings.backgroundColor}
+                            onChange={(e) => onUpdate({ ...settings, backgroundColor: e.target.value })}
+                            className="bg-slate-800 border border-slate-500 rounded px-2 py-1 text-sm text-white w-full uppercase"
+                         />
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-5 gap-2">
+                    {BACKGROUND_PRESETS.map((preset) => (
+                        <button
+                            key={preset.color}
+                            onClick={() => onUpdate({ ...settings, backgroundColor: preset.color })}
+                            className="w-full aspect-square rounded-md border border-gray-500 hover:border-white transition-all shadow-sm"
+                            style={{ backgroundColor: preset.color }}
+                            title={preset.label}
+                        />
+                    ))}
+                </div>
+             </div>
+           )}
+        </div>
+
+        {/* 3. Enquadramento (Framing) */}
         <div>
             <label className="block text-sm font-semibold text-indigo-200 mb-3 uppercase tracking-wider">
-                Enquadramento & Crop (Standard)
+                3. Enquadramento & Crop
             </label>
             <div className="grid grid-cols-2 gap-3">
                 <button 
@@ -114,7 +186,7 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate }) 
             )}
         </div>
 
-        {/* 3. Naming Convention - NEW FEATURE */}
+        {/* 4. Naming Convention */}
         <div>
             <label className="block text-sm font-semibold text-indigo-200 mb-2 uppercase tracking-wider">
                 Padrão de Arquivos
@@ -132,10 +204,10 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate }) 
             </div>
         </div>
 
-        {/* 4. Upload de Logo */}
+        {/* 5. Upload de Logo */}
         <div>
           <label className="block text-sm font-semibold text-indigo-200 mb-3 uppercase tracking-wider">
-            Opcional: Logo / Marca D'água
+            5. Logo / Marca D'água (Opcional)
           </label>
           
           {!settings.logo ? (
@@ -177,7 +249,7 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate }) 
           )}
         </div>
 
-        {/* 5. Posição e Ajuste Fino do Logo */}
+        {/* 6. Posição e Ajuste Fino do Logo */}
         {settings.logo && (
           <div className="animate-fade-in bg-slate-700/30 p-3 rounded-lg space-y-5">
              {/* Posição Base */}

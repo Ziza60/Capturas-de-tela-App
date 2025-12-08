@@ -1,6 +1,5 @@
 
-
-import type { GlassesOption, StyleOption, AspectRatioOption, ClothingOption, LightingOption, ExpressionOption, BeautyOption } from './types';
+import type { GlassesOption, StyleOption, AspectRatioOption, ClothingOption, LightingOption, ExpressionOption, BeautyOption, PoseOption } from './types';
 
 export const HEADSHOT_STYLES: StyleOption[] = [
   // --- Profissional ---
@@ -8,13 +7,14 @@ export const HEADSHOT_STYLES: StyleOption[] = [
     id: 'ultra-professional',
     label: 'Corporativo Ultra Profissional',
     prompt: `Create an ultra-professional corporate image.
-TARGET: The subject(s) (person or animal) in the uploaded photo.
-ACTION: Keep the identity 100% identical to the source. Do not "fix" them.
-CHANGE: 
-1. Background: Clean, neutral studio grey/white/charcoal.
-2. Clothing: High-end business suits/blazers in neutral colors (Navy, Black, Grey). If animal: dress in a cute professional suit/tie.
-3. Lighting: Soft studio lighting.
-If it is a group, apply this to everyone uniformly.`,
+TARGET: The subject(s) in the uploaded photo.
+ACTION: Keep the identity 100% identical to the source.
+BACKGROUND PROTOCOL:
+- Use a **SOLID MEDIUM-DARK GREY** background (approx Hex #4a4a4a).
+- The background MUST be uniform and texture-free (seamless paper look).
+- NO gradients, NO office blurs, NO vignettes.
+CLOTHING: High-end business suits/blazers in Dark Navy or Black.
+LIGHTING: Soft studio lighting (Butterfly), even on both sides of the face.`,
     category: 'professional',
   },
   {
@@ -32,7 +32,13 @@ If it is a group, apply this to everyone uniformly.`,
   {
     id: 'corporate-grey',
     label: 'Fundo Cinza Corporativo',
-    prompt: `Keep the faces/snouts exactly as they are. Change background to a solid, professional neutral grey. Change clothing to professional business attire (or cute pet equivalent). Apply to all subjects.`,
+    prompt: `Keep the faces/snouts exactly as they are. 
+    BACKGROUND: **Thunder Grey (Hex #454545)**.
+    - It must be a SOLID, FLAT, MATTE grey.
+    - STRICTLY NO GRADIENTS. NO LIGHT SPOTS. NO VIGNETTES.
+    - It must look like a seamless paper backdrop in a studio.
+    
+    Change clothing to professional business attire (or cute pet equivalent). Apply to all subjects.`,
     category: 'professional',
   },
   {
@@ -62,7 +68,15 @@ If it is a group, apply this to everyone uniformly.`,
   {
     id: 'classic-bw',
     label: 'Clássico Preto e Branco',
-    prompt: `Keep the faces/snouts exactly as they are. Convert the image to a high-quality Black and White professional portrait. Focus on expression and contrast.`,
+    prompt: `Keep the faces/snouts exactly as they are. 
+    Convert the image to a high-quality Black and White professional portrait.
+    
+    [CRITICAL FRAMING INSTRUCTION]
+    - Maintain the STANDARD corporate framing (Medium Shot).
+    - DO NOT ZOOM IN ON THE FACE.
+    - LEAVE HEADROOM: There must be visible space above the hair. Do not crop the top of the head.
+    
+    Focus on expression and contrast, but strictly respect the wide framing.`,
     category: 'professional',
   },
 
@@ -104,6 +118,88 @@ If it is a group, apply this to everyone uniformly.`,
     category: 'casual_natural',
   },
 
+  // --- Viagem no Tempo (TIME TRAVEL) ---
+  {
+    id: 'tt-1920s',
+    label: 'Anos 20: Peaky Blinders',
+    prompt: `TIME TRAVEL: 1920s Birmingham/London.
+    STYLE: Vintage B&W or Sepia photo, slightly grainy.
+    CLOTHING: Tweed 3-piece suit with flat cap (men) or Flapper dress with pearls/headband (women).
+    BACKGROUND: Foggy industrial street or elegant art deco club.
+    ATMOSPHERE: Moody, serious, cinematic.`,
+    category: 'time_travel',
+  },
+  {
+    id: 'tt-viking',
+    label: 'Era Viking (Nórdico)',
+    prompt: `TIME TRAVEL: 9th Century Scandinavia.
+    STYLE: Cinematic Historical Drama (like "Vikings" or "The Northman").
+    CLOTHING: Realistic leather armor, furs, heavy wool tunics. No fantasy plastic armor.
+    BACKGROUND: Misty fjord, wooden longhouse, or snowy forest.
+    LIGHTING: Cold, natural, overcast light. Fire torch accents.`,
+    category: 'time_travel',
+  },
+  {
+    id: 'tt-wild-west',
+    label: 'Velho Oeste (Wanted)',
+    prompt: `TIME TRAVEL: 1880s American Wild West.
+    STYLE: Daguerreotype / Tin Type photo style (High contrast, sepia, scratches, vintage borders).
+    CLOTHING: Cowboy hat, leather duster coat, vest, bandana.
+    BACKGROUND: Saloon interior or dusty desert town.
+    VIBE: "Wanted Poster" or rugged pioneer portrait.`,
+    category: 'time_travel',
+  },
+  {
+    id: 'tt-1980s-retro',
+    label: 'Anos 80: Neon & Synthwave',
+    prompt: `TIME TRAVEL: 1980s Arcade / Mall Portrait.
+    STYLE: Soft focus, film grain, slight chromatic aberration (VHS look).
+    CLOTHING: Colorful windbreaker, denim jacket with pins, neon accessories. Big hair volume.
+    BACKGROUND: Lasers background (School photo style) or Neon City street.
+    LIGHTING: Pink and Blue rim lighting.`,
+    category: 'time_travel',
+  },
+  {
+    id: 'tt-victorian',
+    label: 'Aristocracia Vitoriana',
+    prompt: `TIME TRAVEL: 1890s Victorian London.
+    STYLE: Formal Oil Painting or very early photography.
+    CLOTHING: High collar suits, velvet, lace, corsets, top hat or intricate hats.
+    BACKGROUND: Ornate library, manor house drawing room, velvet curtains.
+    VIBE: Dignified, wealthy, serious.`,
+    category: 'time_travel',
+  },
+  {
+    id: 'tt-ancient-egypt',
+    label: 'Egito Antigo',
+    prompt: `TIME TRAVEL: Ancient Egypt Pharaoh/Noble.
+    STYLE: Historical cinematic recreation.
+    CLOTHING: Gold jewelry, linen robes, pectoral collars, headdresses.
+    BACKGROUND: Inside a temple with hieroglyphs or desert with pyramids.
+    LIGHTING: Golden sunlight and torchlight.`,
+    category: 'time_travel',
+  },
+  {
+    id: 'tt-samurai',
+    label: 'Samurai (Japão Feudal)',
+    prompt: `TIME TRAVEL: Edo Period Japan.
+    STYLE: Historical epic movie still.
+    CLOTHING: Traditional Kimono or Samurai Armor (O-yoroi).
+    BACKGROUND: Cherry blossom garden or Japanese castle interior.
+    VIBE: Honor, stoic, peaceful warrior.`,
+    category: 'time_travel',
+  },
+   {
+    id: 'tt-1950s-diner',
+    label: 'Anos 50: Greaser/Diner',
+    prompt: `TIME TRAVEL: 1950s USA.
+    STYLE: Technicolor film look (vibrant red/teal).
+    CLOTHING: Leather jacket and white tee (Greaser) or Polka dot dress and scarf.
+    BACKGROUND: Retro Diner with checkered floor and neon sign or classic car.
+    VIBE: Rock n Roll, Milkshake date.`,
+    category: 'time_travel',
+  },
+
   // --- Halloween & Fantasia ---
   {
     id: 'joker-clown',
@@ -141,7 +237,7 @@ If it is a group, apply this to everyone uniformly.`,
     3. EYES: Change eyes to "Dead Eyes" (Cloudy white cataracts or bloodshot red sclera). This is crucial for the scary look.
     4. MOUTH: Darkened, dirty teeth and gums. Maybe some fake blood trickle.
     5. CLOTHING: Tattered, dirty, distressed survivor clothes.
-    VIBE: Terrifying, gritty, realistic apocalypse. The Walking Dead style.`,
+    Vibe: Terrifying, gritty, realistic apocalypse. The Walking Dead style.`,
     category: 'halloween_fantasy',
   },
   {
@@ -171,8 +267,14 @@ If it is a group, apply this to everyone uniformly.`,
   {
     id: '3d-pixar-style',
     label: 'Avatar 3D Premium (Pixar Style)',
-    prompt: `Create a premium 3D AVATAR portrait of the subject in a Pixar-inspired stylized 3D aesthetic. 
-The person must remain fully recognizable, while rendered as a soft, expressive 3D character.
+    prompt: `Create a premium 3D AVATAR GROUP PORTRAIT.
+TARGET: ALL subjects (people) in the uploaded photo.
+STYLE: Pixar-inspired stylized 3D aesthetic.
+
+GROUP INSTRUCTIONS:
+- DETECT ALL FACES.
+- Apply the 3D style to EVERY PERSON in the image.
+- Do not leave anyone realistic. Uniformity is key.
 
 STYLE REQUIREMENTS:
 - Soft 3D modeling with subtle stylization of facial shapes.
@@ -188,25 +290,27 @@ EYE & FACE STYLE:
 - Physical reflections and catchlights, natural iris detail.
 - Face stylized but stable: same jawline, bone structure, and asymmetry.
 
-TEXTURE & MATERIALS:
-- Smooth skin with mild stylized imperfections (to avoid “plastic doll” look).
-- Natural shading around mouth, nose, and jaw.
-- Clothing simplified but believable in 3D animation style.
-
 IDENTITY PRESERVATION:
-Despite the stylization, the avatar MUST clearly be the same person:
+Despite the stylization, the avatars MUST clearly be the same people:
 - same hair geometry, facial landmarks, skin tone.
 - same face shape and proportions.
 - NO white outlines or sticker effects. Seamless blend.
 
 FINAL RESULT:
-A Pixar-quality 3D animated character design of the subject, expressive and stylized, but still instantly recognizable as the original human subject.`,
+A Pixar-quality 3D animated character design of the subjects, expressive and stylized, but still instantly recognizable as the original human subjects.`,
     category: 'creative_artistic',
   },
   {
     id: 'anime-style',
     label: 'Anime Japonês (Moderno)',
-    prompt: `Create a HIGH-QUALITY MODERN ANIME PORTRAIT (Kyoto Animation / Makoto Shinkai aesthetic).
+    prompt: `Create a HIGH-QUALITY MODERN ANIME GROUP PORTRAIT (Kyoto Animation / Makoto Shinkai aesthetic).
+TARGET: ALL subjects (people) in the uploaded photo.
+
+GROUP INSTRUCTIONS:
+- DETECT ALL FACES.
+- Apply the Anime style to EVERY PERSON in the image.
+- Uniform art style for the whole group.
+
 FEATURES:
 - EYES: Large, expressive, and bright. Detailed irises with depth and reflections.
 - EYEBROWS: Thin and arched, positioned slightly above the eyes.
@@ -217,7 +321,7 @@ FEATURES:
 - HAIR: Stylized, spiky yet fluid strands, falling softly over the forehead and contouring the face. Dynamic flow.
 - LIGHTING: Soft contour highlights, enhancing three-dimensionality while keeping the clean anime look.
 
-IDENTITY PRESERVATION: Keep hair color, eye color, and accessories, but ADAPT anatomy to this specific anime aesthetic.`,
+IDENTITY PRESERVATION: Keep hair color, eye color, and accessories, but ADAPT anatomy to this specific anime aesthetic for ALL subjects in the photo.`,
     category: 'creative_artistic',
   },
   {
@@ -253,7 +357,12 @@ IDENTITY PRESERVATION: Keep hair color, eye color, and accessories, but ADAPT an
   {
     id: 'oil-painting',
     label: 'Pintura a Óleo',
-    prompt: `Transform the image into a classic oil painting style. Visible brushstrokes, rich textures. Keep the likeness of the subjects.`,
+    prompt: `STYLE: CLASSIC OIL PAINTING ON CANVAS (Masterpiece).
+TECHNIQUE: Impasto (Thick, heavy brushstrokes). Use a Palette Knife for texture.
+TEXTURE: Visible canvas grain, rich paint depth, oil sheen.
+LIGHTING: Dramatic painterly lighting (Chiaroscuro / Rembrandt style).
+INSTRUCTION: The result must look like a physical painting found in a museum, NOT a digital photo.
+IDENTITY: Capture the subject's likeness using expressive paint strokes.`,
     category: 'creative_artistic',
   },
   {
@@ -348,6 +457,30 @@ IDENTITY PRESERVATION: Keep hair color, eye color, and accessories, but ADAPT an
     prompt: `Keep the faces/snouts exactly as they are. Place the subject(s) in Dubai with Burj Khalifa in background. Clothing: High-end luxury evening wear.`,
     category: 'travel_scenery',
   },
+  {
+    id: 'china-temple',
+    label: 'Templo do Céu (China)',
+    prompt: `Keep the faces/snouts exactly as they are. Place the subject(s) at the Temple of Heaven in Beijing. Background: The iconic circular Hall of Prayer for Good Harvests. Lighting: Clear bright day. Clothing: Casual tourist attire.`,
+    category: 'travel_scenery',
+  },
+  {
+    id: 'pisa-tower',
+    label: 'Torre de Pisa (Itália)',
+    prompt: `Keep the faces/snouts exactly as they are. Place the subject(s) in front of the Leaning Tower of Pisa in Italy. Background: The famous leaning bell tower and blue sky. Lighting: Sunny afternoon. Clothing: Relaxed summer travel wear.`,
+    category: 'travel_scenery',
+  },
+  {
+    id: 'venice-canal',
+    label: 'Canais de Veneza',
+    prompt: `Keep the faces/snouts exactly as they are. Place the subject(s) on a gondola or bridge in Venice. Background: Historic canals, water, and Italian architecture. Lighting: Golden hour romantic light. Clothing: Stylish smart-casual.`,
+    category: 'travel_scenery',
+  },
+  {
+    id: 'india-tajmahal',
+    label: 'Taj Mahal (Índia)',
+    prompt: `Keep the faces/snouts exactly as they are. Place the subject(s) in front of the Taj Mahal in Agra, India. Background: The majestic white marble mausoleum and reflecting pool. Lighting: Soft morning light. Clothing: Respectful, elegant travel attire.`,
+    category: 'travel_scenery',
+  },
 ];
 
 export const CLOTHING_OPTIONS: ClothingOption[] = [
@@ -357,9 +490,14 @@ export const CLOTHING_OPTIONS: ClothingOption[] = [
     prompt: `Keep the subject's original clothing. Do not change attire.`,
   },
   {
+    id: 'auto-style',
+    label: 'Adaptar ao Cenário (Automático)',
+    prompt: `ADAPT CLOTHING TO THE SCENE. Ignore original clothing. The subject MUST wear attire that fits the background location/theme perfectly (e.g., Winter clothes for snow, Summer clothes for beach, Costume for fantasy).`,
+  },
+  {
     id: 'executive-suit',
     label: 'Terno Executivo (Navy/Preto)',
-    prompt: `Force change clothing to a high-end tailored Navy or Black business suit with a crisp white shirt. Professional, authoritative look.`,
+    prompt: `Force change clothing to a high-end tailored Navy or Black business suit with a professional silk tie and white shirt. Professional, authoritative look.`,
   },
   {
     id: 'lawyer',
@@ -393,7 +531,7 @@ const STANDARD_FRAMING = `
     *** CORPORATE UNIFORM GEOMETRY (ISO) ***
     ORIENTATION: STRICT FRONTAL.
     SHOULDERS: Broad, Square, and Symmetric.
-    HEAD SIZE: Normalized.
+    HEAD SIZE: Normalized to 35-40% of image height.
     
     *** UNIFORM ALIGNMENT ***
     The shirt/suit collar must be centered.
@@ -482,9 +620,18 @@ export const TEAM_UNIFORMS: ClothingOption[] = [
   {
     id: 'medical-white-coat',
     label: 'Saúde: Jaleco Branco + Estetoscópio',
-    prompt: `UNIFORM PROTOCOL: Force ALL subjects to wear a Professional White Medical Lab Coat over blue scrubs. MUST include a stethoscope around the neck.
+    prompt: `UNIFORM PROTOCOL: Force ALL subjects to wear a Professional White Medical Lab Coat over **NAVY BLUE** scrubs.
+    
+    *** MEDICAL UNIFORM ANATOMY FIX ***
+    1. STETHOSCOPE WEIGHT: The stethoscope MUST REST HEAVILY on the base of the neck/shoulders. It should NOT look like a floating necklace. 
+    2. NECK LENGTH: Ensure the neck looks NATURAL. Do not elongate the neck to fit the stethoscope. If space is tight, lower the shoulders.
+    3. FABRIC: Heavy Cotton White Coat texture to avoid white blowout.
+    
+    *** GENDER SPECIFIC ***
+    - FOR WOMEN: Widen the shot to show the shoulders fully. 
+    
     ${STANDARD_FRAMING}
-    LOGO ZONE: Ensure the chest pocket area of the Lab Coat is FLAT and VISIBLE for badge placement. Do NOT let the stethoscope cover the logo area.
+    LOGO ZONE: Ensure the chest pocket area of the Lab Coat is FLAT and VISIBLE for badge placement.
     NO LOGOS, NO TEXT.`,
   },
   {
@@ -513,7 +660,19 @@ export const TEAM_UNIFORMS: ClothingOption[] = [
   {
     id: 'security-navy',
     label: 'Segurança: Uniforme Tático Azul',
-    prompt: `UNIFORM PROTOCOL: Force ALL subjects to wear a Tactical Navy Blue Security Shirt with epaulets on shoulders. Professional guard uniform.
+    prompt: `UNIFORM PROTOCOL: Force ALL subjects to wear a Tactical Navy Blue Security Pilot Shirt.
+    
+    *** CRITICAL: SHOULDER EPAULETS (PLATINAS) ***
+    - The subject MUST have RIGID SHOULDER BOARDS (Epaulets) on both shoulders.
+    - Each Epaulet must have TWO DISTINCT WHITE STRIPES (Bars).
+    - The stripes must be horizontal, clearly visible, and located on the shoulders.
+
+    *** GEOMETRY OVERRIDE: WIDE FRAMING ***
+    - ZOOM OUT to show the FULL WIDTH of the shoulders.
+    - DO NOT CROP the shoulders. The Epaulets must be fully inside the frame.
+    - HEAD SIZE: Target 30% of image height (Smaller than standard to allow shoulder width).
+    - HEADROOM: Leave 20% empty space above the hair.
+
     ${STANDARD_FRAMING}
     LOGO ZONE: Clean chest area.
     NO LOGOS (User will add).`,
@@ -523,6 +682,12 @@ export const TEAM_UNIFORMS: ClothingOption[] = [
     id: 'hospitality-bowtie',
     label: 'Hotelaria: Colete + Borboleta',
     prompt: `UNIFORM PROTOCOL: Force ALL subjects to wear a Black Vest over a white shirt with a Black Bow Tie. Vibe: High-end Waiter, Bartender, Concierge.
+    
+    *** HOSPITALITY SPECIFIC ANTI-ZOOM ***
+    - The Bow Tie detail often causes the camera to zoom in. PREVENT THIS.
+    - SHOW THE WAISTCOAT (VEST) BUTTONS.
+    - Frame from MID-CHEST or WAIST up. Do NOT frame from collarbone up.
+    
     ${STANDARD_FRAMING}
     LOGO ZONE: Ensure the vest chest area is visible for logo.
     NO LOGOS, NO TEXT.`,
@@ -549,23 +714,18 @@ export const TEAM_UNIFORMS: ClothingOption[] = [
 
 export const FRAMING_PROMPTS = {
   'chest-up': `
-  *** FRAMING PROTOCOL (ISO CORPORATE STANDARD - PHASE 4 HIERARCHY) ***
+  *** FRAMING PROTOCOL (ISO CORPORATE STANDARD) ***
   
-  [MANDATORY GEOMETRY]
-  - **EYE LINE:** Eyes MUST be at **43-45%** of image height from top.
-  - **CHIN LINE:** Chin MUST be at **72-76%** of image height from top.
-  - **HEADROOM:** Space above hair must be **3-6%**.
+  [MANDATORY COMPOSITION: "NEGATIVE SPACE RULE"]
+  1. **HEAD SIZE:** The head must be SMALLER than usual. It should occupy max 1/3 of the vertical space.
+  2. **TOP MARGIN:** There MUST be significant empty space above the hair.
+  3. **SIDE MARGINS:** There MUST be significant empty space to the left and right of the ears.
+  4. **SHOULDERS:** Show the FULL width of the shoulders. Do not crop the deltoids.
   
-  [SHOULDER & MARGIN RULES - ZERO TOLERANCE]
-  - **SIDE MARGINS:** Minimum **6%** gap on each side (Shoulder to Edge).
-  - **MAX WIDTH:** Shoulders must NOT exceed **88%** of image width.
-  - **NO TOUCHING:** Shoulders CANNOT touch the border. Zoom out if needed.
-  
-  [BODY & HEAD POSTURE]
-  - **POSE:** STRICT FRONTAL. Reconstruct side poses to be frontal.
-  - **ROLL (TILT):** Head must be VERTICAL (|Roll| ≤ 2°).
-  - **LOGO ZONE:** Upper chest must be FLAT and FRONTAL for digital logo overlay.
-  - **PERSPECTIVE:** Simulate 85mm lens (No Fish-Eye).
+  [FEMALE SUBJECT SPECIFIC]
+  - WOMEN MUST HAVE THE SAME "WIDE SHOT" FRAMING AS MEN.
+  - DO NOT ZOOM IN on the face.
+  - DO NOT CROP at the neck. Show the upper chest/lapels.
   `,
   'close-up': `
   *** FRAMING PROTOCOL (LINKEDIN CLOSE-UP) ***
@@ -643,6 +803,44 @@ export const BEAUTY_OPTIONS: BeautyOption[] = [
   { id: 'natural', label: 'Natural (Sem make)', prompt: `BEAUTY OVERRIDE: No makeup look. Clean, hydrated skin texture. Keep natural imperfections.` },
   { id: 'matte', label: 'Matte / Profissional', prompt: `BEAUTY OVERRIDE: Professional matte finish. Reduce shine/oiliness. Even skin tone. Subtle grooming.` },
   { id: 'glamour', label: 'Glamour / Retoque', prompt: `BEAUTY OVERRIDE: High-end beauty retouch. Flawless skin, accentuated eyes, perfect grooming. Magazine quality.` },
+];
+
+export const POSE_OPTIONS: PoseOption[] = [
+    { 
+        id: 'default', 
+        label: 'Original / Natural', 
+        prompt: '' 
+    },
+    { 
+        id: 'arms-crossed', 
+        label: 'Braços Cruzados', 
+        prompt: 'POSE INSTRUCTION: The subject must have their arms crossed confidently over their chest. Power pose. Ensure hands/fingers are rendered correctly or hidden.',
+        icon: '🙅'
+    },
+    { 
+        id: 'hand-chin', 
+        label: 'Mão no Queixo', 
+        prompt: 'POSE INSTRUCTION: The subject is resting their chin gently on one hand. Thinking / Contemplative pose. Ensure the hand anatomy is perfect.',
+        icon: '🤔'
+    },
+    { 
+        id: 'hands-pockets', 
+        label: 'Mãos no Bolso', 
+        prompt: 'POSE INSTRUCTION: The subject is standing with hands casually in their pockets. Relaxed, approachable stance.',
+        icon: '👖'
+    },
+    { 
+        id: 'leaning-forward', 
+        label: 'Inclinado (Engajado)', 
+        prompt: 'POSE INSTRUCTION: The subject is leaning slightly forward towards the camera. Engaging, listening pose. Shallow depth of field.',
+        icon: '👀'
+    },
+    {
+        id: 'side-profile',
+        label: 'Perfil Lateral (45°)',
+        prompt: 'POSE INSTRUCTION: The subject is turned 45 degrees to the side, looking back at the camera. Dynamic shoulder angle.',
+        icon: '👤'
+    }
 ];
 
 export const AGE_OPTIONS = [

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import type { BatchItem, AspectRatioOption } from '../types';
-import { LoadingSpinner, CheckCircleIcon, DownloadIcon } from './icons';
+import { LoadingSpinner, CheckCircleIcon, DownloadIcon, SparklesIcon } from './icons';
 
 interface BatchResultsProps {
   queue: BatchItem[];
@@ -9,9 +9,10 @@ interface BatchResultsProps {
   onEditItem?: (item: BatchItem) => void;
   onRetryItem?: (itemId: string) => void;
   onDownloadZip?: () => void;
+  onAnalyzeItem?: (item: BatchItem) => void;
 }
 
-const BatchResults: React.FC<BatchResultsProps> = ({ queue, aspectRatio, onEditItem, onRetryItem, onDownloadZip }) => {
+const BatchResults: React.FC<BatchResultsProps> = ({ queue, aspectRatio, onEditItem, onRetryItem, onDownloadZip, onAnalyzeItem }) => {
   // Determine the CSS aspect class based on selection, default to square
   const aspectClass = aspectRatio?.className || 'aspect-square';
   const completedCount = queue.filter(i => i.status === 'completed').length;
@@ -85,19 +86,30 @@ const BatchResults: React.FC<BatchResultsProps> = ({ queue, aspectRatio, onEditI
                 
                 {/* Actions Overlay (Hover) for Completed */}
                 {item.status === 'completed' && item.resultImage && (
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                    <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-3">
+                        {onAnalyzeItem && (
+                            <button
+                                onClick={() => onAnalyzeItem(item)}
+                                className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs rounded-full shadow hover:from-purple-500 hover:to-indigo-500 w-full flex items-center justify-center gap-1 transform hover:scale-105 transition-all font-bold"
+                            >
+                                <SparklesIcon className="w-3 h-3" /> 
+                                {item.analysis ? 'Ver Análise' : 'Analisar (IA)'}
+                            </button>
+                        )}
+                        
                         {onEditItem && (
                             <button 
                                 onClick={() => onEditItem(item)}
-                                className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-full shadow hover:bg-indigo-500 w-full flex items-center justify-center gap-1 transform hover:scale-105 transition-all"
+                                className="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full shadow hover:bg-gray-600 w-full flex items-center justify-center gap-1 border border-gray-600"
                             >
                                 <span>✏️</span> Ajustar Logo
                             </button>
                         )}
+                        
                         <a 
                             href={`data:image/png;base64,${item.resultImage}`} 
                             download={item.finalFileName || `headshot-${item.file.name}`}
-                            className="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full shadow hover:bg-gray-600 w-full flex items-center justify-center gap-1 border border-gray-500"
+                            className="px-3 py-1.5 bg-cyan-600 text-white text-xs rounded-full shadow hover:bg-cyan-500 w-full flex items-center justify-center gap-1 border border-cyan-500/50"
                         >
                             <DownloadIcon className="w-3 h-3" /> Baixar
                         </a>

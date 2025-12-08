@@ -1,9 +1,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { CameraIcon, CompareIcon, LoadingSpinner, ShareIcon, DownloadIcon } from './icons';
-import type { UploadedFile, EditingSettings } from '../types';
+import { CameraIcon, CompareIcon, LoadingSpinner, ShareIcon, DownloadIcon, SparklesIcon } from './icons';
+import type { UploadedFile, EditingSettings, ImageAnalysisResult } from '../types';
 import { applyPostProcessing } from '../utils/imageProcessing';
+import { analyzeHeadshot } from '../services/geminiService';
 import PhotoEditor from './PhotoEditor';
+import MagicEditor from './MagicEditor';
+import BrushEditor from './BrushEditor';
+import ImageAnalysis from './ImageAnalysis';
 
 // Helper to convert base64 to a Blob for sharing
 function base64ToBlob(base64: string, mimeType: string): Blob {
@@ -120,7 +124,7 @@ const ImageComparator: React.FC<{
     return (
         <div 
           ref={containerRef}
-          className="relative w-full h-full select-none overflow-hidden rounded-lg group bg-gray-900"
+          className="relative w-full h-full select-none overflow-hidden rounded-lg group bg-gray-900 shadow-2xl"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -177,7 +181,15 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ isLoading, generatedImage
   // State for Post Processing
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
+  
+  // UI Toggles
+  const [activeEditor, setActiveEditor] = useState<'none' | 'filters' | 'magic_global' | 'brush_local'>('none');
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  // Analysis State
+  const [analysisResult, setAnalysisResult] = useState<ImageAnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   const [editorSettings, setEditorSettings] = useState<EditingSettings>({
       brightness: 1,
       contrast: 1,
@@ -200,40 +212,88 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ isLoading, generatedImage
             borderRadius: 0, borderWidth: 0, borderColor: '#ffffff',
             format: 'png', quality: 0.9
         });
-        setShowEditor(false);
+        setActiveEditor('none');
+        setAnalysisResult(null); // Reset analysis
+        
+        // Auto scroll to result
+        setTimeout(() => {
+            resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     }
   }, [generatedImage]);
 
   // Apply filters when settings change
   useEffect(() => {
     const apply = async () => {
-        if (!generatedImage) return;
+        if (!generatedImage && !processedImage) return;
+        const source = processedImage || generatedImage;
+        if (!source) return;
+
         setIsProcessing(true);
         try {
-            const result = await applyPostProcessing(generatedImage, editorSettings);
-            setProcessedImage(result);
+            const result = await applyPostProcessing(source, editorSettings);
         } catch (e) {
-            console.error("Editor error:", e);
+            console.error("Editor error", e);
         } finally {
             setIsProcessing(false);
         }
     };
-    
-    // Simple debounce
-    const timer = setTimeout(apply, 150);
-    return () => clearTimeout(timer);
-  }, [generatedImage, editorSettings]);
+  }, [editorSettings]);
 
+  // --- BETTER FILTER LOGIC ---
+  const [magicImage, setMagicImage] = useState<string | null>(null);
+  const [finalImage, setFinalImage] = useState<string | null>(null);
+
+  useEffect(() => {
+      setMagicImage(null);
+      setFinalImage(null);
+  }, [generatedImage]);
+
+  const activeBaseImage = magicImage || generatedImage;
+
+  useEffect(() => {
+      const apply = async () => {
+          if (!activeBaseImage) return;
+          setIsProcessing(true);
+          try {
+              const res = await applyPostProcessing(activeBaseImage, editorSettings);
+              setFinalImage(res);
+          } finally {
+              setIsProcessing(false);
+          }
+      };
+      const timer = setTimeout(apply, 100);
+      return () => clearTimeout(timer);
+  }, [activeBaseImage, editorSettings]);
+
+  const handleMagicUpdate = (newImg: string) => {
+      setMagicImage(newImg);
+  };
+
+  const handleRunAnalysis = async () => {
+      const imageToAnalyze = finalImage || activeBaseImage;
+      if (!imageToAnalyze) return;
+
+      setIsAnalyzing(true);
+      try {
+          const result = await analyzeHeadshot(imageToAnalyze);
+          setAnalysisResult(result);
+      } catch (err) {
+          alert("Não foi possível analisar a imagem no momento.");
+      } finally {
+          setIsAnalyzing(false);
+      }
+  };
 
   const handleShareImage = useCallback(async () => {
-    if (!processedImage || !navigator.share) {
+    if (!finalImage || !navigator.share) {
       alert('A função de compartilhar não é suportada neste navegador.');
       return;
     }
     try {
       const mime = `image/${editorSettings.format}`;
       const ext = editorSettings.format === 'jpeg' ? 'jpg' : editorSettings.format;
-      const blob = base64ToBlob(processedImage, mime);
+      const blob = base64ToBlob(finalImage, mime);
       const file = new File([blob], `ai-headshot.${ext}`, { type: mime });
       await navigator.share({
         title: 'Meu Retrato de IA',
@@ -246,7 +306,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ isLoading, generatedImage
         alert('Não foi possível compartilhar a imagem.');
       }
     }
-  }, [processedImage, editorSettings.format]);
+  }, [finalImage, editorSettings.format]);
 
   if (isLoading) return <div className="w-full bg-gray-800 rounded-xl shadow-lg min-h-[300px] flex items-center justify-center"><LoadingState /></div>;
   
@@ -270,43 +330,106 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ isLoading, generatedImage
   }
 
   return (
-    <div className="w-full bg-gray-800 rounded-xl flex flex-col shadow-lg overflow-hidden border border-gray-700">
-       {/* Main Image Area */}
-       <div className={`w-full ${aspectRatioClassName} bg-gray-900 relative transition-all duration-300`}>
-         {isProcessing && (
-            <div className="absolute inset-0 z-30 bg-black/50 flex items-center justify-center">
-                <LoadingSpinner className="w-8 h-8 text-white" />
-            </div>
-         )}
-         <ImageComparator 
-            before={originalImage} 
-            after={processedImage || generatedImage} 
-            onShare={handleShareImage} 
-            mimeType={`image/${editorSettings.format}`}
-         />
+    <div ref={resultRef} className="w-full flex flex-col gap-4">
+        
+       {/* 1. MAIN RESULT CARD */}
+       <div className="w-full bg-gray-800 rounded-xl flex flex-col shadow-lg border border-gray-700 overflow-hidden">
+            
+            {/* Conditional Rendering: If Brush Editor is active, it takes over the view for better UX */}
+            {activeEditor === 'brush_local' && activeBaseImage ? (
+                <BrushEditor
+                    currentImage={activeBaseImage}
+                    onImageUpdate={handleMagicUpdate}
+                    onClose={() => setActiveEditor('none')}
+                />
+            ) : (
+                <div className={`w-full ${aspectRatioClassName} bg-gray-900 relative transition-all duration-300`}>
+                    {isProcessing && (
+                        <div className="absolute inset-0 z-30 bg-black/50 flex items-center justify-center">
+                            <LoadingSpinner className="w-8 h-8 text-white" />
+                        </div>
+                    )}
+                    <ImageComparator 
+                        before={originalImage} 
+                        after={finalImage || activeBaseImage || generatedImage} 
+                        onShare={handleShareImage} 
+                        mimeType={`image/${editorSettings.format}`}
+                    />
+                </div>
+            )}
+
+            {/* Editor Toggle Bar - Only show if Brush Editor is NOT active */}
+            {activeEditor !== 'brush_local' && (
+                <div className="bg-gray-900/50 p-4 border-t border-gray-700">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                            {/* GLOBAL MAGIC BUTTON */}
+                            <button 
+                                onClick={() => setActiveEditor(activeEditor === 'magic_global' ? 'none' : 'magic_global')}
+                                className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                                    activeEditor === 'magic_global'
+                                    ? 'bg-purple-700 text-white ring-2 ring-purple-300' 
+                                    : 'bg-gray-800 text-purple-200 hover:bg-purple-900/30 border border-purple-500/30'
+                                }`}
+                            >
+                                <span className="text-lg">✨</span>
+                                <span>Edição Global</span>
+                                <span className="text-[9px] opacity-60 font-normal hidden sm:block">Fundo, Estilo, Vibe</span>
+                            </button>
+
+                             {/* LOCAL BRUSH BUTTON */}
+                             <button 
+                                onClick={() => setActiveEditor('brush_local')}
+                                className="flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl text-xs font-bold transition-all shadow-sm bg-gray-800 text-indigo-200 hover:bg-indigo-900/30 border border-indigo-500/30"
+                            >
+                                <span className="text-lg">🖌️</span>
+                                <span>Retoque Local</span>
+                                <span className="text-[9px] opacity-60 font-normal hidden sm:block">Corrigir Detalhes</span>
+                            </button>
+
+                            {/* FILTERS BUTTON */}
+                            <button 
+                                onClick={() => setActiveEditor(activeEditor === 'filters' ? 'none' : 'filters')}
+                                className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                                    activeEditor === 'filters' 
+                                    ? 'bg-cyan-700 text-white ring-2 ring-cyan-400' 
+                                    : 'bg-gray-800 text-cyan-200 hover:bg-gray-700 border border-cyan-500/30'
+                                }`}
+                            >
+                                <span className="text-lg">🎨</span>
+                                <span>Filtros & Cor</span>
+                                <span className="text-[9px] opacity-60 font-normal hidden sm:block">Brilho, Contraste</span>
+                            </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Magic Editor Panel (Global) */}
+            {activeEditor === 'magic_global' && activeBaseImage && (
+                <div className="p-4 bg-indigo-950/30 border-t border-indigo-500/20">
+                    <MagicEditor 
+                            currentImage={activeBaseImage}
+                            onImageUpdate={handleMagicUpdate}
+                            onClose={() => setActiveEditor('none')}
+                    />
+                </div>
+            )}
+
+            {/* Photo Editor Panel (Filters) */}
+            {activeEditor === 'filters' && (
+                <PhotoEditor 
+                    settings={editorSettings}
+                    onUpdate={setEditorSettings}
+                />
+            )}
        </div>
 
-       {/* Editor Toggle Bar */}
-       <div className="bg-gray-800 border-t border-gray-700 p-2 flex justify-center">
-            <button 
-                onClick={() => setShowEditor(!showEditor)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                    showEditor 
-                    ? 'bg-cyan-600 text-white shadow-lg' 
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-            >
-                <span>🎨</span>
-                {showEditor ? 'Fechar Editor' : 'Abrir Estúdio de Edição'}
-            </button>
-       </div>
-
-       {/* Editor Panel */}
-       {showEditor && (
-         <PhotoEditor 
-            settings={editorSettings}
-            onUpdate={setEditorSettings}
-         />
+       {/* 2. AI ANALYSIS CARD (NEW) */}
+       {activeEditor !== 'brush_local' && (
+           <ImageAnalysis 
+                data={analysisResult} 
+                isLoading={isAnalyzing} 
+                onAnalyze={handleRunAnalysis} 
+           />
        )}
     </div>
   );
