@@ -7,6 +7,7 @@ import BatchResults from './components/BatchResults';
 import TeamSettingsPanel from './components/TeamSettings';
 import LogoAdjustModal from './components/LogoAdjustModal';
 import AnalysisModal from './components/AnalysisModal';
+import PolaroidJourney from './components/PolaroidJourney';
 import { generateHeadshot, generateSuggestions, analyzeHeadshot } from './services/geminiService';
 import { overlayLogo } from './utils/imageProcessing';
 import { ASPECT_RATIO_OPTIONS, GLASSES_OPTIONS, HEADSHOT_STYLES, CLOTHING_OPTIONS, TEAM_UNIFORMS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS, POSE_OPTIONS } from './constants';
@@ -19,6 +20,7 @@ import CreationsGallery from './components/CreationsGallery';
 import StudioControls from './components/AdvancedOptions'; 
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
+import { SparklesIcon } from './components/icons';
 
 const App: React.FC = () => {
   // --- SINGLE MODE STATE ---
@@ -34,8 +36,8 @@ const App: React.FC = () => {
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatioOption | null>(ASPECT_RATIO_OPTIONS[0]);
   
   // --- ADVANCED STUDIO OPTIONS ---
-  // Initial likeness threshold set to 60 (Balanced)
-  const [userProfile, setUserProfile] = useState<UserProfile>({ ageGroup: '', gender: '', ethnicity: '', likenessThreshold: 60 });
+  // Default likeness threshold increased to 85 (High Fidelity by default)
+  const [userProfile, setUserProfile] = useState<UserProfile>({ ageGroup: '', gender: '', ethnicity: '', likenessThreshold: 85 });
   const [cameraSettings, setCameraSettings] = useState<CameraSettings>({ depthOfField: 50, angle: 'eye-level' });
 
   const [selectedLighting, setSelectedLighting] = useState<LightingOption>(LIGHTING_OPTIONS[0]);
@@ -50,6 +52,7 @@ const App: React.FC = () => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isSuggestionsLoading, setIsSuggestionsLoading] = useState<boolean>(false);
   const [creationsHistory, setCreationsHistory] = useState<string[]>([]);
+  const [showPolaroidJourney, setShowPolaroidJourney] = useState<boolean>(false);
 
   // --- BATCH MODE STATE ---
   const [isBatchMode, setIsBatchMode] = useState<boolean>(false);
@@ -160,16 +163,24 @@ const App: React.FC = () => {
   const handleStyleSelect = (style: StyleOption) => {
     setSelectedStyle(style);
     
+    // Auto-select clothing if style requires it
     if (style.category === 'travel_scenery' || style.category === 'halloween_fantasy') {
         const autoOption = CLOTHING_OPTIONS.find(c => c.id === 'auto-style');
         if (autoOption) {
             setSelectedClothingOption(autoOption);
         }
     } else {
+        // Revert to default only if it was auto-selected before
         const autoOption = CLOTHING_OPTIONS.find(c => c.id === 'auto-style');
         if (selectedClothingOption?.id === autoOption?.id) {
              setSelectedClothingOption(CLOTHING_OPTIONS[0]); 
         }
+    }
+
+    // NEW: Auto-switch Aspect Ratio for Passport Style
+    if (style.id === 'passport-pro') {
+        const portrait = ASPECT_RATIO_OPTIONS.find(o => o.id === 'portrait');
+        if (portrait) setSelectedAspectRatio(portrait);
     }
   };
   
@@ -489,6 +500,23 @@ const App: React.FC = () => {
                     </div>
                  )}
 
+                 {/* POLAROID FEATURE BUTTON - Only in Single Mode */}
+                 {!isBatchMode && (
+                     <div className="w-full max-w-md mx-auto animate-fade-in">
+                         <button
+                            onClick={() => setShowPolaroidJourney(true)}
+                            className="w-full py-4 bg-gradient-to-r from-orange-600 to-pink-600 rounded-xl shadow-lg transform hover:scale-[1.02] transition-all flex items-center justify-center gap-3 border border-white/20"
+                         >
+                             <span className="text-2xl">📸</span>
+                             <div className="text-left">
+                                 <p className="text-sm font-bold text-white uppercase">Máquina do Tempo (Polaroid)</p>
+                                 <p className="text-[10px] text-orange-200">Gerar 4 décadas (1920-2090) automaticamente</p>
+                             </div>
+                             <SparklesIcon className="w-5 h-5 text-yellow-300 ml-auto mr-2 animate-pulse" />
+                         </button>
+                     </div>
+                 )}
+
                 <StyleSelector
                   styles={HEADSHOT_STYLES}
                   selectedStyle={selectedStyle}
@@ -497,14 +525,6 @@ const App: React.FC = () => {
                   isTeamMode={isBatchMode}
                 />
                 
-                {selectedStyle && !isBatchMode && (
-                  <ClothingOptions 
-                    options={CLOTHING_OPTIONS}
-                    selectedOption={selectedClothingOption}
-                    onOptionSelect={setSelectedClothingOption}
-                  />
-                )}
-
                 {selectedStyle && (
                   <>
                     <StudioControls 
@@ -520,6 +540,8 @@ const App: React.FC = () => {
                       onBeautyChange={setSelectedBeauty}
                       selectedPose={selectedPose}
                       onPoseChange={setSelectedPose}
+                      selectedClothing={selectedClothingOption}
+                      onClothingChange={setSelectedClothingOption}
                       is4kMode={is4kMode}
                       onToggle4k={setIs4kMode}
                       isBatchMode={isBatchMode}
@@ -613,6 +635,14 @@ const App: React.FC = () => {
                 data={analyzingBatchItem.analysis || null}
                 isLoading={!analyzingBatchItem.analysis}
                 onClose={() => setAnalyzingBatchItem(null)}
+            />
+        )}
+        
+        {/* POLAROID JOURNEY MODAL */}
+        {showPolaroidJourney && uploadedFiles.length > 0 && (
+            <PolaroidJourney 
+                originalImage={uploadedFiles[0]}
+                onClose={() => setShowPolaroidJourney(false)}
             />
         )}
 

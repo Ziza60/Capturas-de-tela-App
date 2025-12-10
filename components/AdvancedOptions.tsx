@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { AGE_OPTIONS, GENDER_OPTIONS, ETHNICITY_OPTIONS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS, POSE_OPTIONS } from '../constants';
-import type { UserProfile, LightingOption, ExpressionOption, BeautyOption, PoseOption, CameraSettings } from '../types';
+import type { UserProfile, LightingOption, ExpressionOption, BeautyOption, PoseOption, CameraSettings, ClothingOption } from '../types';
+import VirtualTryOn from './VirtualTryOn';
 
 interface StudioControlsProps {
   userProfile: UserProfile;
@@ -18,6 +19,11 @@ interface StudioControlsProps {
   onBeautyChange: (beauty: BeautyOption) => void;
   selectedPose: PoseOption;
   onPoseChange: (pose: PoseOption) => void;
+  
+  // Clothing props needed for the Try-On feature
+  selectedClothing?: ClothingOption | null;
+  onClothingChange?: (clothing: ClothingOption) => void;
+
   is4kMode: boolean;
   onToggle4k: (enabled: boolean) => void;
   isBatchMode?: boolean;
@@ -36,11 +42,13 @@ const StudioControls: React.FC<StudioControlsProps> = ({
   onBeautyChange,
   selectedPose,
   onPoseChange,
+  selectedClothing,
+  onClothingChange,
   is4kMode,
   onToggle4k,
   isBatchMode = false
 }) => {
-  const [activeTab, setActiveTab] = useState<'studio' | 'camera' | 'pose' | 'identity'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'camera' | 'pose' | 'tryon' | 'identity'>('studio');
 
   const handleProfileChange = (field: keyof UserProfile, value: any) => {
     onProfileChange({
@@ -87,6 +95,14 @@ const StudioControls: React.FC<StudioControlsProps> = ({
            >
              🕺 Pose
            </button>
+           {!isBatchMode && (
+               <button 
+                 onClick={() => setActiveTab('tryon')}
+                 className={`flex-1 py-2 text-xs font-semibold rounded whitespace-nowrap px-2 transition-all ${activeTab === 'tryon' ? 'bg-indigo-700 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+               >
+                 👔 Provador
+               </button>
+           )}
            <button 
              onClick={() => setActiveTab('identity')}
              className={`flex-1 py-2 text-xs font-semibold rounded whitespace-nowrap px-2 transition-all ${activeTab === 'identity' ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
@@ -273,7 +289,15 @@ const StudioControls: React.FC<StudioControlsProps> = ({
                </div>
            )}
 
-           {/* TAB 4: IDENTITY (FIDELITY) */}
+           {/* TAB 4: VIRTUAL TRY-ON (PROVADOR) */}
+           {activeTab === 'tryon' && onClothingChange && (
+               <VirtualTryOn 
+                  selectedClothing={selectedClothing || null}
+                  onClothingSelect={onClothingChange}
+               />
+           )}
+
+           {/* TAB 5: IDENTITY (FIDELITY) */}
            {activeTab === 'identity' && (
                <div className="space-y-5 animate-slide-in">
                    

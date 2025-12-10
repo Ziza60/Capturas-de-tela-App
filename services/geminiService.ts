@@ -53,23 +53,36 @@ export async function generateHeadshot(
   const isHalloween = style.category === 'halloween_fantasy';
   const isCreativeMode = style.category === 'creative_artistic';
   const isTimeTravel = style.category === 'time_travel';
+  const isUtilitiesMode = style.category === 'utilities'; // Novo modo detectado
   
+  // New Helper: Is this professional style actually environmental?
+  // office-modern, tech-startup, real-estate, etc.
+  const isEnvironmentalProfessional = [
+      'office-modern', 
+      'tech-startup', 
+      'real-estate', 
+      'conference-speaker', 
+      'outdoor-park', 
+      'urban-street',
+      'coffee-shop'
+  ].includes(style.id);
+
   // Detect Batch/Corporate intent based on framing style presence
-  const isCorporateBatch = !!framingStyle && !isTravelMode && !isHalloween && !isCreativeMode && !isTimeTravel;
+  const isCorporateBatch = !!framingStyle && !isTravelMode && !isHalloween && !isCreativeMode && !isTimeTravel && !isUtilitiesMode;
+
+  // --- CLOTHING REFERENCE DETECTION (NEW) ---
+  const hasClothingReference = clothingOption?.id === 'custom-ref-image' && !!clothingOption.referenceImage;
 
   // --- DYNAMIC CAMERA ANGLE LOGIC ---
-  // We determine the angle instruction separately so it can override the default protocol
   let angleProtocol = "";
   let opticsInstruction = "";
 
   if (cameraSettings) {
-      // 1. Angle Instruction (Overrides default anchoring)
       if (cameraSettings.angle === 'low-angle') {
           angleProtocol = `
           [CRITICAL CAMERA ANGLE: LOW ANGLE / HERO SHOT]
           - POSITION: Place the camera BELOW the subject's eye line, looking UP.
           - EFFECT: The subject should look powerful and dominant.
-          - GEOMETRY: Chin slightly elevated. Broad shoulders.
           - ANCHOR: Camera at chest height, tilted up 30 degrees.
           `;
       } else if (cameraSettings.angle === 'high-angle') {
@@ -77,11 +90,9 @@ export async function generateHeadshot(
           [CRITICAL CAMERA ANGLE: HIGH ANGLE / SELFIE STYLE]
           - POSITION: Place the camera ABOVE the subject's eye line, looking DOWN.
           - EFFECT: The subject should look approachable and friendly.
-          - GEOMETRY: Forehead slightly closer to lens. Chin tapered.
           - ANCHOR: Camera at hairline height, tilted down 30 degrees.
           `;
       } else {
-          // Default Eye Level
           angleProtocol = `
           [CRITICAL: VERTICAL ANCHORING - EYE LEVEL]
           - POSITION: The subject's EYES must be positioned at the **35% to 38% height line** of the image.
@@ -89,9 +100,8 @@ export async function generateHeadshot(
           `;
       }
 
-      // 2. Aperture/Depth of Field Instruction
       let blurDesc = "";
-      if (cameraSettings.depthOfField < 30) blurDesc = "f/1.2 Aperture. EXTREME BOKEH. Background must be completely creamy and unrecognizable. Subject pops out.";
+      if (cameraSettings.depthOfField < 30) blurDesc = "f/1.2 Aperture. EXTREME BOKEH. Background must be completely creamy and unrecognizable.";
       else if (cameraSettings.depthOfField > 70) blurDesc = "f/11 Aperture. Deep depth of field. Background details are visible and sharp.";
       else blurDesc = "f/5.6 Aperture. Standard professional portrait separation.";
 
@@ -102,63 +112,65 @@ export async function generateHeadshot(
   }
 
   // -------------------------------------------------------------------------
-  // PROTOCOL 1: CORPORATE HEADSHOT ISO STANDARD (STRICT GEOMETRY)
-  // Used for: Professional, Casual Natural
+  // PROTOCOL 0: STRICT IDENTITY PRESERVATION (NEW)
   // -------------------------------------------------------------------------
-  const CORPORATE_ISO_PROTOCOL = `
-**PHASE 1: CORPORATE HEADSHOT ISO STANDARD (STRICT COMPOSITION)**
-You are an AI Photographer enforcing a strict uniformity standard for a corporate directory.
-Consistency is the #1 priority.
+  const STRICT_IDENTITY_PROTOCOL = `
+  *** STRICT IDENTITY PRESERVATION PROTOCOL (PRIORITY ZERO) ***
+  1. **PHYSIOGNOMY LOCK:** You MUST preserve the exact bone structure, nose shape, eye distance, and jawline of the source image.
+  2. **MICRO-FEATURES:** Do NOT remove moles, scars, birthmarks, or facial asymmetry. These are critical for recognition.
+  3. **NO "AI FACE":** Do not generate a generic "perfect" face. If the subject has a crooked nose or asymmetric eyes, KEEP THEM.
+  4. **RECOGNITION TEST:** The output must be immediately recognizable to the subject's family.
+  5. **MAPPING:** Map the source face pixels onto the new lighting/body context without distorting the geometry.
+  6. **FIDELITY OVERRIDE:** If the style conflicts with the face shape, the face shape WINS.
+  `;
 
+  // -------------------------------------------------------------------------
+  // PROTOCOL 1: PROFESSIONAL PORTRAIT PROTOCOL (RENAMED FROM ISO)
+  // -------------------------------------------------------------------------
+  const PROFESSIONAL_PORTRAIT_PROTOCOL = `
+**PHASE 1: PROFESSIONAL PORTRAIT PROTOCOL**
+You are an AI Photographer creating premium corporate portraits.
+
+${STRICT_IDENTITY_PROTOCOL}
 ${angleProtocol} 
 
-[COMPOSITION RULES]
-- **HEADROOM (MANDATORY):** There MUST be a significant empty space (gap) between the top of the hair and the frame edge. DO NOT CUT THE HAIR.
-- **SHOULDER VISIBILITY:** You MUST show the FULL width of the shoulders. Do not crop the deltoids.
-- **NO ZOOM:** If the subject has broad shoulders or a uniform with epaulets, ZOOM OUT to fit them. DO NOT CROP THE HEAD to fit the body.
+[BODY & COMPOSITION WORKFLOW]
+1. **FACE ANCHOR:** Start with the source face geometry. Do not warp it.
+2. **BODY GENERATION:** Generate a professional body (suit/blazer) that fits the head's scale and angle.
+3. **SKIN MATCHING:** Ensure the neck and chest skin tone matches the face perfectly.
+4. **FRAMING:** Adhere to the requested aspect ratio and framing.
 
-[ANATOMY CORRECTION - NECK]
-- **NO GIRAFFE NECK:** Ensure the neck length is natural. The Trapezius muscles (shoulders) must be visible and anchored naturally to the neck.
-- If using a suit/coat, the collar must sit on the neck base, not float around it.
+[BACKGROUND LOGIC]
+1. ANALYZE THE TARGET STYLE.
+2. DOES IT SPECIFY A LOCATION (Office, City, Park)? -> GENERATE REALISTIC DEPTH-OF-FIELD BACKGROUND.
+3. DOES IT SPECIFY A COLOR (Grey, White, Black)? -> GENERATE SOLID STUDIO BACKGROUND.
+4. DEFAULT: If unspecified, use a soft, neutral, expensive-looking gradient.
 
-[CAMERA & LENS]
-- **LENS:** 85mm Portrait Lens.
-- **DISTANCE:** 4.5 METERS AWAY. (Pushed back significantly to ensure headroom).
-- **SHOT TYPE:** Medium Shot (Plan Américain) - Chest Up (Showing Shoulders).
-
-[BACKGROUND CONSISTENCY]
-- If a solid background is requested, it must be **FLAT and MATTE**.
-- NO Vignette (dark corners). NO Spotlights (bright centers).
-- The color must be uniform across all generated images in this batch.
+[SCALE ENFORCEMENT]
+- **WIDTH RULE:** The subject's shoulders MUST fill ~85% of the image width (for chest-up).
+- **HEAD SIZE:** Ensure the head is proportional to the body.
 `;
 
   const CORPORATE_SAFETY_BLOCKS = `
 **PHASE 2: COMMERCIAL UNIFORMITY & SAFETY**
-[NEGATIVE PROMPT - STRICTLY FORBIDDEN]
-- **DO NOT DRAW TEXT, NUMBERS, OR GRIDS ON THE IMAGE.**
-- **DO NOT ZOOM IN.**
-- Do not create a "before/after" comparison.
-- Do not distort hands (hide hands if possible).
-
-[FAIL-SAFE INSTRUCTION]
-If the user provided a selfie (close-up), you MUST "Zoom Out" and hallucinate the missing neck, shoulders, and chest area to match the Medium Shot protocol.
+[NEGATIVE PROMPT]
+- **DO NOT** deform hands or eyes.
+- **DO NOT** add text or watermarks.
+- **DO NOT** change the subject's ethnicity or age (unless calibration requested).
 `;
 
   // -------------------------------------------------------------------------
-  // PROTOCOL 2: TRAVEL & SCENERY (ENVIRONMENTAL PORTRAIT)
+  // PROTOCOL 2: TRAVEL & SCENERY
   // -------------------------------------------------------------------------
   const TRAVEL_SCENERY_PROTOCOL = `
-**TRAVEL PHOTOGRAPHY PROTOCOL (ENVIRONMENTAL PORTRAIT)**
-The goal is to show the subject VISITING a famous location. The Background is equally important as the Subject.
+**TRAVEL PHOTOGRAPHY PROTOCOL**
+${STRICT_IDENTITY_PROTOCOL}
+The goal is to show the subject VISITING a famous location.
 
-[CRITICAL: GEOMETRY & SCALING - "NO GIANT TOURIST"]
-- **SUBJECT SCALE:** The subject must occupy **MAXIMUM 30%** of the frame width.
-- **HIERARCHY:** The Landmark is the HERO. The person is the GUEST.
-- **HEADROOM:** Leave **20-25%** empty space above the subject's head.
-
-[SHOT TYPE: AMERICAN SHOT]
-- **CROP LINE:** Crop the subject strictly at **MID-THIGH (Knees up)**.
-- **DEPTH:** Infinite depth of field (Background sharp).
+[GEOMETRY & SCALING]
+- **SUBJECT SCALE:** Subject occupies max 30-40% of frame width.
+- **HIERARCHY:** Balanced focus between Subject and Landmark.
+- **DEPTH:** Background is visible but may have slight depth of field.
 `;
 
   // -------------------------------------------------------------------------
@@ -166,73 +178,58 @@ The goal is to show the subject VISITING a famous location. The Background is eq
   // -------------------------------------------------------------------------
   const HALLOWEEN_COSPLAY_PROTOCOL = `
 **HALLOWEEN IDENTITY PROTOCOL**
+${STRICT_IDENTITY_PROTOCOL}
 1. DO NOT GENERATE A CELEBRITY.
 2. The goal is to show the *USER* wearing a costume/makeup.
-3. PRESERVE FACIAL STRUCTURE: Keep the user's nose, jawline, eye distance exactly as they are.
+3. PRESERVE FACIAL STRUCTURE: Apply makeup/masks *over* the face, do not replace the face.
 `;
 
   // -------------------------------------------------------------------------
-  // PROTOCOL 4: TIME TRAVEL / PHOTO BOOTH
+  // PROTOCOL 4: TIME TRAVEL
   // -------------------------------------------------------------------------
   const TIME_TRAVEL_PROTOCOL = `
 **TIME TRAVEL PHOTO BOOTH PROTOCOL**
-You are a sci-fi camera that transports the subject to a specific historical era.
-1. **HISTORICAL ACCURACY:** Clothing, environment, and props must be accurate to the era.
-2. **MEDIUM EMULATION (CRITICAL):**
-   - Pre-1950s: Use appropriate B&W, Sepia, Daguerreotype, or Tin Type effects.
-   - 1950s-1990s: Use appropriate film grain, technicolor, or VHS texture.
-3. **IDENTITY PRESERVATION:** Keep the user's facial features EXACTLY as they are, but adapt hairstyle and makeup to fit the era (e.g., powdered wig for Victorian, big hair for 80s) WITHOUT changing the bone structure.
+${STRICT_IDENTITY_PROTOCOL}
+1. **HISTORICAL ACCURACY:** Clothing/Environment must be accurate.
+2. **MEDIUM EMULATION:** Use period-correct film grain/texture (Sepia, B&W, Technicolor).
+3. **ADAPTATION:** Adapt hairstyle/makeup to the era, but keep the FACE GEOMETRY intact.
   `;
 
   // -------------------------------------------------------------------------
-  // PROTOCOL 5: CREATIVE & STYLIZED ART (ANIME / 3D / CARICATURE)
+  // PROTOCOL 5: CREATIVE (RELAXED IDENTITY)
   // -------------------------------------------------------------------------
   const CREATIVE_STYLIZATION_PROTOCOL = `
 **CREATIVE DIGITAL ART PROTOCOL**
 You are a Digital Artist (3D Modeler / Anime Illustrator).
-Your goal is to TRANSFORM the image into a specific art style while keeping the subjects recognizable.
+TARGET: TRANSFORM the image into the requested art style.
 
-[GROUP PHOTO HANDLING - CRITICAL]
-- **DETECT ALL FACES:** You must apply the style to EVERY person in the image.
-- **UNIFORMITY:** Do not leave one person realistic and the others stylized. All must look like they belong in the same universe (e.g., all Anime or all Pixar).
-- **GROUP COMPOSITION:** Keep the relative positions of the people exactly as they are in the source photo.
-
-[GEOMETRY & STYLE PERMISSION]
-- **GEOMETRY CHANGE AUTHORIZED:** You are ALLOWED to change facial proportions (eyes, nose, head shape) if the style requires it (e.g., Disney/Pixar, Anime).
-- **SKIN TEXTURE:** Replace realistic skin with the target style texture (e.g., Plastic/3D, Cel-shaded/2D).
-- **REALISM OFF:** Do NOT try to make it photorealistic. Make it ARTISTIC.
+[IDENTITY ADAPTATION]
+- **RELAXED GEOMETRY:** You are allowed to change facial proportions (eyes, head shape) to fit the art style (e.g. Big Anime Eyes).
+- **RECOGNIZABLE FEATURES:** Keep hair color, glasses, and general "vibe", but priority is the STYLE.
   `;
+  
+  // -------------------------------------------------------------------------
+  // PROTOCOL 6: BIOMETRIC ID / PASSPORT
+  // -------------------------------------------------------------------------
+  const UTILITIES_ID_PROTOCOL = `
+**BIOMETRIC ID DOCUMENT PROTOCOL (ISO/IEC 19794-5)**
+${STRICT_IDENTITY_PROTOCOL}
+Your goal is to generate a valid ID photo.
+
+[GEOMETRY & FRAMING RULES]
+1. **FACE COVERAGE:** Head occupies 70-80% of image height.
+2. **EXPRESSION:** Neutral. Mouth closed. Eyes open.
+3. **LIGHTING:** Flat, shadowless visibility.
+`;
 
   // --- SELECT PROTOCOL BASED ON STYLE ---
-  // Default to Corporate
-  let selectedProtocol = CORPORATE_ISO_PROTOCOL + CORPORATE_SAFETY_BLOCKS;
+  let selectedProtocol = PROFESSIONAL_PORTRAIT_PROTOCOL + CORPORATE_SAFETY_BLOCKS;
   
-  // Overrides
   if (isTravelMode) selectedProtocol = TRAVEL_SCENERY_PROTOCOL;
   if (isHalloween) selectedProtocol = HALLOWEEN_COSPLAY_PROTOCOL;
   if (isTimeTravel) selectedProtocol = TIME_TRAVEL_PROTOCOL;
-  if (isCreativeMode) selectedProtocol = CREATIVE_STYLIZATION_PROTOCOL; // New override for Anime/3D
-
-  // --- IDENTITY INSTRUCTION SELECTION ---
-  // The user found that "Anime" and "3D" styles were not working for groups because the identity rules were too strict.
-  // We need to relax them specifically for Creative modes.
-  let identityInstruction = `
-    *** CRITICAL INSTRUCTION: MAXIMUM FACE FIDELITY ***
-    1. THE FACE MUST BE IDENTICAL TO THE SOURCE PHOTO. 
-    2. PRESERVE IDENTITY AT ALL COSTS: Do not "beautify" or "idealize" the facial structure. 
-    3. NOSE, EYES, MOUTH: Keep the exact shape, size, and distance of the features.
-    4. ASYMMETRY IS REALISM: If the source face has asymmetry, KEEP IT. Do not fix it.
-    5. It is better to look exactly like the user than to look "perfect" or "AI-generated".
-  `;
-
-  if (isCreativeMode) {
-      identityInstruction = `
-      *** CREATIVE STYLE ADAPTATION MODE ***
-      1. RECOGNIZABLE IDENTITY: The subjects must be recognizable by hair, accessories, and general vibes.
-      2. ADAPT FEATURES: You MUST adapt their features to the target style (Anime/3D). Big eyes, smooth skin, stylized hair are REQUIRED.
-      3. GROUP CONSISTENCY: Apply this logic to ALL FACES found in the image.
-      `;
-  }
+  if (isCreativeMode) selectedProtocol = CREATIVE_STYLIZATION_PROTOCOL;
+  if (isUtilitiesMode) selectedProtocol = UTILITIES_ID_PROTOCOL;
 
   // --- MULTI-SHOT INSTRUCTION ---
   let multiShotContext = "";
@@ -240,60 +237,72 @@ Your goal is to TRANSFORM the image into a specific art style while keeping the 
       multiShotContext = `
       [MULTI-SHOT REFERENCE ACTIVE]
       The user has provided ${files.length} reference photos of the SAME person.
-      1. ANALYZE ALL PHOTOS: Synthesize the facial structure, eye shape, nose bridge, and jawline from all provided angles.
-      2. CONSISTENCY: Do not just copy one photo. Create a 3D mental model of the subject's face and render it in the target style.
-      3. This improves likeness by 200%. USE IT.
+      1. SYNTHESIZE: Combine features from all angles to build an accurate 3D mental model.
+      2. CONSISTENCY: Use the most flattering features common to all photos.
+      3. LIKENESS BOOST: This helps you understand the true shape of the nose and jaw. Use it.
+      `;
+  }
+  
+  // --- BACKGROUND INSTRUCTION ---
+  // If it's an environmental pro style, force it.
+  let backgroundInstruction = "";
+  if (isEnvironmentalProfessional) {
+      backgroundInstruction = `
+      *** FORCE ENVIRONMENTAL BACKGROUND ***
+      - DO NOT generate a solid studio background.
+      - GENERATE A REAL SCENE with depth (Bokeh).
+      - Context: ${style.label}
+      `;
+  } else if (backgroundColor) {
+      backgroundInstruction = `
+      *** BACKGROUND OVERRIDE ***
+      TARGET COLOR HEX: ${backgroundColor}
+      Finish: Matte, Flat, Uniform.
       `;
   }
 
   let systemInstruction = `
-    You are a world-class AI Photographer and Digital Artist.
-    Your goal is to generate a high-quality image based on the user's uploaded photo(s).
+    You are a world-class AI Photographer.
+    Your PRIMARY OBJECTIVE is to generate a high-quality image of the provided subject.
     
-    ${identityInstruction}
-
     ${multiShotContext}
     ${selectedProtocol}
+    ${backgroundInstruction}
 
     GENERAL RULES:
-    1. HIGH QUALITY: 8k resolution, perfect skin texture (or style texture).
-    2. REMOVE ARTIFACTS: No distorted hands, glasses, or hair.
+    1. HIGH QUALITY: 8k resolution, perfect skin texture.
+    2. REMOVE ARTIFACTS: No distorted hands or hair.
   `;
 
-  // --- RETRY LOGIC WITH EXPONENTIAL BACKOFF & MODEL FALLBACK ---
+  // --- RETRY LOGIC & MODEL FALLBACK ---
   const MAX_RETRIES = 5;
   let lastError: any;
   
-  // Cost Optimization: Default to Flash unless 4K mode is explicitly on
   let currentModel = is4kMode ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
   let usingFallbackModel = false;
 
   // LIKENESS INSTRUCTION LOGIC
-  const likenessScore = userProfile?.likenessThreshold || 60;
+  const likenessScore = userProfile?.likenessThreshold || 85; // Default strictness high
   let likenessInstruction = "";
   let identityEnforcementPrompt = "";
 
   if (isCreativeMode) {
-      // Ignore user strictness for creative modes to allow style transfer
-       likenessInstruction = "CREATIVE FREEDOM: Prioritize the artistic style (Anime/3D) over exact anatomical match for ALL subjects.";
+       likenessInstruction = "CREATIVE FREEDOM: Prioritize the artistic style (Anime/3D) over exact anatomical match.";
        identityEnforcementPrompt = `
        *** CREATIVE STYLIZATION ACTIVE ***
        - PRIORITY: STYLE > EXACT IDENTITY.
-       - You MUST transform the faces to match the art style (Anime/3D/Cartoon).
-       - Do NOT output a photorealistic face.
-       - Retain recognizable features (hair color, gender, glasses), but CHANGE the geometry to fit the style.
-       - Apply this transformation to EVERY PERSON in the group.
+       - Transform faces to match the art style.
        `;
-  } else if (likenessScore >= 80) {
-      likenessInstruction = "EXTREME IDENTITY MODE: Do NOT change a single pixel of the facial structure. Keep moles, scars, asymmetry, and exact nose shape. Realism > Beauty.";
-      identityEnforcementPrompt = "*** CRITICAL: OUTPUT FACE MUST MATCH SOURCE FACE EXACTLY ***";
-  } else if (likenessScore <= 30) {
-      likenessInstruction = "CREATIVE IDENTITY MODE: Heavily idealize the face. Smooth skin, perfect symmetry, enhance beauty significantly. Make them look like a movie star version of themselves.";
-      identityEnforcementPrompt = "OUTPUT FACE SHOULD BE AN IDEALIZED VERSION OF THE SOURCE.";
   } else {
-      // Even Balanced mode should be strict now for Professional styles
-      likenessInstruction = "HIGH FIDELITY BALANCED: Keep the person fully recognizable. Apply professional lighting but DO NOT change the bone structure or eye shape.";
-      identityEnforcementPrompt = "*** CRITICAL: OUTPUT FACE MUST MATCH SOURCE FACE EXACTLY ***";
+      // STRICT DEFAULT
+      likenessInstruction = `
+      *** EXTREME FIDELITY MODE (Likeness: ${likenessScore}%) ***
+      - DO NOT BEAUTIFY OR GENERALIZE THE FACE.
+      - PRESERVE: Asymmetry, Nose Shape, Eye Distance, Lip Thickness.
+      - The output must look exactly like the person in the input photo, just better lit/dressed.
+      - IF THE INPUT FACE IS NOT PERFECT, THE OUTPUT FACE MUST NOT BE PERFECT.
+      `;
+      identityEnforcementPrompt = "*** CRITICAL: OUTPUT FACE MUST BE A PERFECT MATCH TO THE SOURCE. ***";
   }
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -301,54 +310,56 @@ Your goal is to TRANSFORM the image into a specific art style while keeping the 
         const currentKey = getKeyForAttempt(attempt);
         const ai = new GoogleGenAI({ apiKey: currentKey });
         
-        // Construct the prompt parts - INTERLEAVE IMAGES
         const parts: any[] = [];
         
-        // Add all images to the prompt
+        // 1. Add Subject Images
         files.forEach(file => {
              parts.push({ inlineData: { mimeType: file.mimeType, data: file.base64 } });
         });
+
+        // 2. Add Clothing Reference
+        let clothingInstructionBlock = '';
+        if (hasClothingReference && clothingOption?.referenceImage) {
+            parts.push({ inlineData: { mimeType: 'image/jpeg', data: clothingOption.referenceImage } });
+            clothingInstructionBlock = `
+            *** CLOTHING REFERENCE OVERRIDE ***
+            [INSTRUCTION]: The LAST image provided is the CLOTHING REFERENCE.
+            Generate the Subject (First Image) wearing the Clothing (Last Image).
+            Adapt fit to subject's body.
+            `;
+        } else if (clothingOption) {
+            clothingInstructionBlock = `CLOTHING INSTRUCTION: ${clothingOption.prompt}`;
+        }
 
         parts.push({ text: `
                 TARGET STYLE: ${style.prompt}
                 
                 ${identityEnforcementPrompt}
+                ${likenessInstruction}
                 
-                ${clothingOption ? `CLOTHING INSTRUCTION: ${clothingOption.prompt}` : ''}
+                ${clothingInstructionBlock}
+                
                 ${aspectRatioOption ? `ASPECT RATIO: ${aspectRatioOption.prompt}` : ''}
                 
-                ${backgroundColor ? `
-                *** BACKGROUND OVERRIDE ***
-                The user has requested a specific SOLID background color.
-                TARGET COLOR HEX: ${backgroundColor}
-                CRITICAL INSTRUCTION: The background MUST be this exact solid color. 
-                FINISH: Matte, Flat, Uniform. 
-                NO GRADIENTS, NO SHADOWS, NO TEXTURES.
-                ` : ''}
-
                 ${isCorporateBatch ? `
                 *** BATCH CONSISTENCY ENFORCEMENT ***
-                This is part of a company directory.
                 1. IGNORE ORIGINAL CROP.
                 2. ${framingStyle === 'close-up' ? FRAMING_PROMPTS['close-up'] : FRAMING_PROMPTS['chest-up']}
-                3. UNIFY HEAD SIZE: Head must look proportionate to a standard 35mm sensor frame.
                 ` : ''}
 
                 ${userProfile?.gender ? `GENDER CALIBRATION: Ensure subject looks ${userProfile.gender}.` : ''}
                 ${userProfile?.ageGroup ? `AGE CALIBRATION: Ensure subject looks ${userProfile.ageGroup}.` : ''}
                 ${userProfile?.ethnicity ? `ETHNICITY CALIBRATION: Preserve ${userProfile.ethnicity} features.` : ''}
 
-                *** ADVANCED STUDIO CONTROLS ***
-                LIKENESS PROTOCOL: ${likenessInstruction}
+                *** STUDIO CONTROLS ***
                 ${poseOption?.id !== 'default' ? poseOption?.prompt : ''}
                 ${opticsInstruction}
-
                 ${lightingOption?.id !== 'default' ? lightingOption?.prompt : ''}
                 ${expressionOption?.id !== 'original' ? expressionOption?.prompt : ''}
                 ${beautyOption?.id !== 'default' ? beautyOption?.prompt : ''}
                 ${glassesOption?.prompt || ''}
 
-                ${is4kMode && !usingFallbackModel ? 'QUALITY OVERRIDE: 8K Resolution, Ultra-High Texture Detail, Perfect Skin Shader.' : ''}
+                ${is4kMode && !usingFallbackModel ? 'QUALITY: 8K Resolution, Ultra-High Texture Detail.' : ''}
 
                 GENERATE THE IMAGE NOW.
         `});
@@ -414,7 +425,6 @@ Your goal is to TRANSFORM the image into a specific art style while keeping the 
         }
 
         if (attempt === MAX_RETRIES - 1 && !usingFallbackModel) {
-            // Last ditch effort: Force Flash
             currentModel = 'gemini-2.5-flash-image';
             usingFallbackModel = true;
             attempt--;
@@ -426,87 +436,62 @@ Your goal is to TRANSFORM the image into a specific art style while keeping the 
   throw lastError || new Error("Falha ao gerar imagem após várias tentativas.");
 }
 
-// --- NEW FUNCTION: Generative Editing & Inpainting ---
 export async function editGeneratedImage(
   base64Image: string,
   editPrompt: string,
-  maskBase64?: string // Optional mask for inpainting
+  maskBase64?: string
 ): Promise<string> {
-    
-    if (API_KEYS.length === 0) {
-        throw new Error("API Key missing");
-    }
+    if (API_KEYS.length === 0) throw new Error("API Key missing");
 
     let systemInstruction = `
         You are an expert Photo Editor AI.
-        Your task is to EDIT the provided image based on the user's text instruction.
-        
+        Task: EDIT the image based on user instruction.
         RULES:
-        1. PRESERVE IDENTITY: Do not change the person's face structure unless explicitly asked.
-        2. PRESERVE COMPOSITION: Keep the pose and camera angle unless asked to change.
-        3. HIGH QUALITY: Output must be photorealistic and high resolution.
+        1. PRESERVE IDENTITY: Do NOT change facial features unless asked.
+        2. REALISM: Keep lighting and texture consistent.
     `;
 
     if (maskBase64) {
         systemInstruction += `
-        \n*** INPAINTING MODE ACTIVE ***
-        The user has provided a MASK image (black and white).
-        - WHITE areas represent the selection.
-        - BLACK areas are protected.
-        - YOU MUST ONLY CHANGE PIXELS inside the selection.
-        - BLEND SEAMLESSLY with the surrounding protected area.
+        \n*** INPAINTING MODE ***
+        Use the provided mask (White=Edit, Black=Protect).
+        Only change pixels in the white area.
         `;
     }
 
-    // Strategy: COST OPTIMIZATION
-    // Use 'gemini-2.5-flash-image' by default as requested to reduce costs.
     let currentModel = 'gemini-2.5-flash-image';
-    
     const MAX_RETRIES = 3;
     let lastError: any;
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-            // Key Rotation
             const currentKey = getKeyForAttempt(attempt);
             const ai = new GoogleGenAI({ apiKey: currentKey });
             
-            console.log(`Editing attempt ${attempt + 1} with model ${currentModel}`);
-
             const parts: any[] = [
                 { inlineData: { mimeType: 'image/png', data: base64Image } }
             ];
 
-            // If mask exists, push it before the prompt
             if (maskBase64) {
                 parts.push({ inlineData: { mimeType: 'image/png', data: maskBase64 } });
             }
 
-            parts.push({ text: `Edit this image. Instruction: ${editPrompt}` });
+            parts.push({ text: `Edit instruction: ${editPrompt}` });
 
             const response = await ai.models.generateContent({
                 model: currentModel,
-                contents: {
-                    parts: parts
-                },
-                config: {
-                    systemInstruction,
-                }
+                contents: { parts },
+                config: { systemInstruction }
             });
 
             for (const part of response.candidates?.[0]?.content?.parts || []) {
-                if (part.inlineData) {
-                    return part.inlineData.data;
-                }
+                if (part.inlineData) return part.inlineData.data;
             }
             throw new Error("No image returned from editing.");
 
         } catch (error: any) {
-            console.error(`Edit failed on model ${currentModel}`, error);
             lastError = error;
-            
             const errorMsg = error.message || '';
-            const isPermissionDenied = errorMsg.includes('403') || error.status === 403 || errorMsg.includes('PERMISSION_DENIED');
             const isRateLimit = errorMsg.includes('429') || error.status === 429;
             const isOverloaded = errorMsg.includes('503') || error.status === 503;
 
@@ -514,14 +499,11 @@ export async function editGeneratedImage(
                 await delay(1000 * Math.pow(2, attempt));
                 continue;
             }
-
-            if (isPermissionDenied) {
-                 break; 
-            }
+            break; 
         }
     }
 
-    throw new Error(lastError?.message || "Falha na edição mágica. Tente novamente.");
+    throw new Error(lastError?.message || "Falha na edição.");
 }
 
 export async function generateSuggestions(
@@ -536,7 +518,6 @@ export async function generateSuggestions(
     ];
 }
 
-// --- NEW FUNCTION: Image Consultant / Analyzer ---
 export async function analyzeHeadshot(
   base64Image: string
 ): Promise<ImageAnalysisResult> {
@@ -545,21 +526,14 @@ export async function analyzeHeadshot(
     const ai = new GoogleGenAI({ apiKey: getKeyForAttempt(0) });
 
     const systemInstruction = `
-    You are an Expert Image Consultant and Career Coach.
-    Your job is to analyze professional headshots and provide psychological scoring and LinkedIn profile optimization.
-    
-    RESPONSE FORMAT: JSON ONLY.
-    Structure:
+    You are an Expert Image Consultant.
+    Analyze professional headshots.
+    RESPONSE: JSON ONLY.
     {
-        "scores": {
-            "professionalism": 0-100,
-            "approachability": 0-100,
-            "creativity": 0-100,
-            "confidence": 0-100
-        },
-        "archetype": "string (e.g., 'The Visionary Executive')",
+        "scores": { "professionalism": 0-100, "approachability": 0-100, "creativity": 0-100, "confidence": 0-100 },
+        "archetype": "string",
         "feedback": ["string", "string", "string"],
-        "linkedinBio": "string (Professional summary based on the visual vibe)"
+        "linkedinBio": "string"
     }
     `;
 
@@ -568,7 +542,7 @@ export async function analyzeHeadshot(
         contents: {
             parts: [
                 { inlineData: { mimeType: 'image/png', data: base64Image } },
-                { text: "Analyze this headshot. Provide scores, an archetype name, 3 bullet points of feedback, and a LinkedIn 'About' section bio that matches this specific energy." }
+                { text: "Analyze this headshot." }
             ]
         },
         config: {

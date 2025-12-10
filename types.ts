@@ -1,5 +1,5 @@
 
-export type StyleCategory = 'professional' | 'casual_natural' | 'creative_artistic' | 'travel_scenery' | 'halloween_fantasy' | 'time_travel' | 'others';
+export type StyleCategory = 'professional' | 'casual_natural' | 'creative_artistic' | 'travel_scenery' | 'halloween_fantasy' | 'time_travel' | 'utilities' | 'others';
 
 export interface StyleOption {
   id: string;
@@ -24,6 +24,7 @@ export interface ClothingOption {
   id: string;
   label: string;
   prompt: string;
+  referenceImage?: string; // New: Supports uploading a clothing image
 }
 
 export interface AspectRatioOption {
