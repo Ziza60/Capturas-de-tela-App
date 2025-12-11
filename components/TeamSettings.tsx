@@ -7,6 +7,8 @@ import { UploadIcon, CloseIcon } from './icons';
 interface TeamSettingsProps {
   settings: TeamSettings;
   onUpdate: (settings: TeamSettings) => void;
+  enableNormalization?: boolean;
+  onToggleNormalization?: (enabled: boolean) => void;
 }
 
 const BACKGROUND_PRESETS = [
@@ -17,7 +19,7 @@ const BACKGROUND_PRESETS = [
   { label: 'Azul', color: '#1a73e8' },
 ];
 
-const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate }) => {
+const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, enableNormalization = true, onToggleNormalization }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,6 +56,42 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate }) 
       </div>
 
       <div className="space-y-8">
+        {/* Normalização Facial (MediaPipe) */}
+        {onToggleNormalization && (
+          <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 p-4 rounded-lg border border-cyan-500/30">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="bg-cyan-600 p-2 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-cyan-200">Normalização Facial (IA)</h4>
+                  <p className="text-[10px] text-gray-400">Padroniza posição de cabeça, olhos e ombros</p>
+                </div>
+              </div>
+              <button
+                onClick={() => onToggleNormalization(!enableNormalization)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  enableNormalization ? 'bg-cyan-600' : 'bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    enableNormalization ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {enableNormalization && (
+              <div className="text-[10px] text-cyan-300 bg-cyan-950/50 p-2 rounded mt-2">
+                <strong>Ativo:</strong> Todas as imagens terão geometria facial idêntica após geração
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 1. Padronização de Uniforme */}
         <div>
           <label className="block text-sm font-semibold text-indigo-200 mb-3 uppercase tracking-wider">

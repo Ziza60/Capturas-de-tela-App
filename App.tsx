@@ -10,6 +10,7 @@ import AnalysisModal from './components/AnalysisModal';
 import PolaroidJourney from './components/PolaroidJourney';
 import { generateHeadshot, generateSuggestions, analyzeHeadshot } from './services/geminiService';
 import { overlayLogo } from './utils/imageProcessing';
+import { normalizeBatch } from './utils/batchNormalizer';
 import { ASPECT_RATIO_OPTIONS, GLASSES_OPTIONS, HEADSHOT_STYLES, CLOTHING_OPTIONS, TEAM_UNIFORMS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS, POSE_OPTIONS } from './constants';
 import type { AspectRatioOption, GlassesOption, StyleOption, UploadedFile, ClothingOption, BatchItem, UserProfile, LightingOption, ExpressionOption, BeautyOption, TeamSettings, PoseOption, CameraSettings } from './types';
 import GlassesOptions from './components/GlassesOptions';
@@ -72,6 +73,8 @@ const App: React.FC = () => {
     logoOffsetX: 0,
     logoOffsetY: 0
   });
+
+  const [enableNormalization, setEnableNormalization] = useState<boolean>(true);
 
   // Modal State
   const [editingBatchItem, setEditingBatchItem] = useState<BatchItem | null>(null);
@@ -280,11 +283,55 @@ const App: React.FC = () => {
         } catch (err) {
             console.error("Batch error", err);
             const errorMessage = err instanceof Error ? err.message : "Erro desconhecido";
-            setBatchQueue(current => current.map((item, idx) => 
+            setBatchQueue(current => current.map((item, idx) =>
                 idx === i ? { ...item, status: 'error', error: errorMessage } : item
             ));
         }
     }
+
+    // NORMALIZAÇÃO FACIAL: Padronizar geometria após todas as gerações
+    if (enableNormalization && isBatchMode) {
+        const completedItems = batchQueue.filter(item => item.status === 'completed' && item.rawImage);
+
+        if (completedItems.length > 1) {
+            try {
+                console.log('Normalizando geometria facial de', completedItems.length, 'imagens...');
+
+                const rawImages = completedItems.map(item => item.rawImage!);
+                const normalizedImages = await normalizeBatch(
+                    rawImages,
+                    1024,
+                    1024,
+                    teamSettings.backgroundType === 'solid' ? teamSettings.backgroundColor : undefined
+                );
+
+                // Atualizar fila com imagens normalizadas
+                setBatchQueue(current => current.map((item, idx) => {
+                    const completedIdx = completedItems.findIndex(ci => ci.id === item.id);
+                    if (completedIdx !== -1 && normalizedImages[completedIdx]) {
+                        const normalizedRaw = normalizedImages[completedIdx];
+
+                        // Re-aplicar logo na imagem normalizada
+                        return overlayLogo(normalizedRaw, teamSettings.logo!.base64, teamSettings)
+                            .then(finalImage => ({
+                                ...item,
+                                rawImage: normalizedRaw,
+                                resultImage: finalImage
+                            }))
+                            .catch(() => item);
+                    }
+                    return Promise.resolve(item);
+                })).then(promises => Promise.all(promises)).then(updated => {
+                    setBatchQueue(updated);
+                });
+
+                console.log('Normalização concluída!');
+            } catch (normError) {
+                console.error('Erro na normalização:', normError);
+            }
+        }
+    }
+
     setIsLoading(false);
   };
 
@@ -493,9 +540,11 @@ const App: React.FC = () => {
               <>
                  {isBatchMode && (
                     <div className="animate-slide-in">
-                        <TeamSettingsPanel 
+                        <TeamSettingsPanel
                             settings={teamSettings}
                             onUpdate={setTeamSettings}
+                            enableNormalization={enableNormalization}
+                            onToggleNormalization={setEnableNormalization}
                         />
                     </div>
                  )}
