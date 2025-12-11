@@ -67,8 +67,8 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, en
                   </svg>
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-cyan-200">Normalização Facial (IA)</h4>
-                  <p className="text-[10px] text-gray-400">Padroniza posição de cabeça, olhos e ombros</p>
+                  <h4 className="text-sm font-bold text-cyan-200">Normalização Profissional</h4>
+                  <p className="text-[10px] text-gray-400">Sistema multi-point: olhos, ombros, rotação e escala</p>
                 </div>
               </div>
               <button
@@ -85,8 +85,10 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, en
               </button>
             </div>
             {enableNormalization && (
-              <div className="text-[10px] text-cyan-300 bg-cyan-950/50 p-2 rounded mt-2">
-                <strong>Ativo:</strong> Todas as imagens terão geometria facial idêntica após geração
+              <div className="text-[10px] text-cyan-300 bg-cyan-950/50 p-2 rounded mt-2 leading-relaxed">
+                <strong>Sistema Ativo:</strong> Detecção multi-point + Templates corporativos fixos + Transformação geométrica forçada
+                <br />
+                <span className="text-cyan-400">→ Olhos: mesma altura (±2px) • Ombros nivelados (±3px) • Tamanho de cabeça uniforme (±5%)</span>
               </div>
             )}
           </div>

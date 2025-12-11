@@ -11,6 +11,7 @@ import PolaroidJourney from './components/PolaroidJourney';
 import { generateHeadshot, generateSuggestions, analyzeHeadshot } from './services/geminiService';
 import { overlayLogo } from './utils/imageProcessing';
 import { normalizeBatch } from './utils/batchNormalizer';
+import { normalizeBatchProfessional, generateQualityReport, type NormalizationResult } from './utils/professionalNormalizer';
 import { ASPECT_RATIO_OPTIONS, GLASSES_OPTIONS, HEADSHOT_STYLES, CLOTHING_OPTIONS, TEAM_UNIFORMS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS, POSE_OPTIONS } from './constants';
 import type { AspectRatioOption, GlassesOption, StyleOption, UploadedFile, ClothingOption, BatchItem, UserProfile, LightingOption, ExpressionOption, BeautyOption, TeamSettings, PoseOption, CameraSettings } from './types';
 import GlassesOptions from './components/GlassesOptions';
@@ -289,45 +290,70 @@ const App: React.FC = () => {
         }
     }
 
-    // NORMALIZAÇÃO FACIAL: Padronizar geometria após todas as gerações
+    // NORMALIZAÇÃO PROFISSIONAL: Sistema de padronização multi-point
     if (enableNormalization && isBatchMode) {
         const completedItems = batchQueue.filter(item => item.status === 'completed' && item.rawImage);
 
         if (completedItems.length > 1) {
             try {
-                console.log('Normalizando geometria facial de', completedItems.length, 'imagens...');
+                console.log('🎯 Iniciando normalização PROFISSIONAL de', completedItems.length, 'imagens...');
+                console.log('📐 Sistema: Detecção multi-point + Templates corporativos + Transformação geométrica');
 
                 const rawImages = completedItems.map(item => item.rawImage!);
-                const normalizedImages = await normalizeBatch(
-                    rawImages,
-                    1024,
-                    1024,
-                    teamSettings.backgroundType === 'solid' ? teamSettings.backgroundColor : undefined
-                );
 
-                // Atualizar fila com imagens normalizadas
-                setBatchQueue(current => current.map((item, idx) => {
-                    const completedIdx = completedItems.findIndex(ci => ci.id === item.id);
-                    if (completedIdx !== -1 && normalizedImages[completedIdx]) {
-                        const normalizedRaw = normalizedImages[completedIdx];
-
-                        // Re-aplicar logo na imagem normalizada
-                        return overlayLogo(normalizedRaw, teamSettings.logo!.base64, teamSettings)
-                            .then(finalImage => ({
-                                ...item,
-                                rawImage: normalizedRaw,
-                                resultImage: finalImage
-                            }))
-                            .catch(() => item);
-                    }
-                    return Promise.resolve(item);
-                })).then(promises => Promise.all(promises)).then(updated => {
-                    setBatchQueue(updated);
+                const normalizedResults = await normalizeBatchProfessional(rawImages, {
+                    backgroundColor: teamSettings.backgroundType === 'solid' ? teamSettings.backgroundColor : '#F5F5F5',
+                    strictMode: false,
+                    showWarnings: true
                 });
 
-                console.log('Normalização concluída!');
+                // Gerar relatório de qualidade
+                const qualityReport = generateQualityReport(normalizedResults);
+                console.log('📊 Relatório de Qualidade:', qualityReport);
+
+                if (qualityReport.qualityDistribution.poor > 0) {
+                    console.warn('⚠️ Algumas imagens tiveram problemas:', qualityReport.commonIssues);
+                }
+
+                // Atualizar fila com imagens normalizadas
+                const updatePromises = batchQueue.map(async (item) => {
+                    const completedIdx = completedItems.findIndex(ci => ci.id === item.id);
+                    if (completedIdx !== -1 && normalizedResults[completedIdx]) {
+                        const result = normalizedResults[completedIdx];
+
+                        if (result.success) {
+                            const normalizedRaw = result.normalizedImage;
+
+                            // Re-aplicar logo na imagem normalizada
+                            try {
+                                const finalImage = teamSettings.logo
+                                    ? await overlayLogo(normalizedRaw, teamSettings.logo.base64, teamSettings)
+                                    : normalizedRaw;
+
+                                return {
+                                    ...item,
+                                    rawImage: normalizedRaw,
+                                    resultImage: finalImage
+                                };
+                            } catch (overlayErr) {
+                                console.error('Erro ao aplicar logo:', overlayErr);
+                                return { ...item, rawImage: normalizedRaw, resultImage: normalizedRaw };
+                            }
+                        } else {
+                            console.warn(`⚠️ Normalização falhou para ${item.file.name}:`, result.warnings);
+                        }
+                    }
+                    return item;
+                });
+
+                const updated = await Promise.all(updatePromises);
+                setBatchQueue(updated);
+
+                console.log('✅ Normalização profissional concluída!');
+                console.log(`   • ${qualityReport.successful}/${qualityReport.totalImages} sucesso`);
+                console.log(`   • Qualidade: ${qualityReport.qualityDistribution.excellent} excelente, ${qualityReport.qualityDistribution.good} bom`);
             } catch (normError) {
-                console.error('Erro na normalização:', normError);
+                console.error('❌ Erro na normalização profissional:', normError);
             }
         }
     }
