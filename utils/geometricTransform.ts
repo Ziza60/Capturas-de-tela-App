@@ -133,6 +133,65 @@ export async function applyGeometricTransform(
 }
 
 /**
+ * Versão com ESCALA FIXA para garantir padronização absoluta
+ */
+export async function transformToTemplateWithFixedScale(
+  imageElement: HTMLImageElement,
+  landmarks: FullBodyLandmarks,
+  template: CorporateTemplate,
+  fixedScale: number,
+  backgroundColor: string = '#F5F5F5'
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+      reject(new Error('Falha ao criar contexto canvas'));
+      return;
+    }
+
+    canvas.width = template.width;
+    canvas.height = template.height;
+
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+
+    const anchors = getAbsoluteAnchorPoints(template);
+
+    // Usar ESCALA FIXA (não calcular individualmente)
+    const scale = fixedScale;
+
+    // Calcular apenas translação para alinhar olhos
+    const srcEyesX = landmarks.eyesCenter.x;
+    const srcEyesY = landmarks.eyesCenter.y;
+
+    // Calcular offset necessário
+    const offsetX = anchors.centerX - srcEyesX * scale;
+    const offsetY = anchors.eyesY - srcEyesY * scale;
+
+    // Aplicar transformação
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
+    // Rotação mínima apenas se muito desalinhado (>5°)
+    if (Math.abs(landmarks.headRotation) > 5) {
+      ctx.translate(srcEyesX, srcEyesY);
+      ctx.rotate(-landmarks.headRotation * Math.PI / 180);
+      ctx.translate(-srcEyesX, -srcEyesY);
+    }
+
+    ctx.drawImage(imageElement, 0, 0);
+    ctx.restore();
+
+    const resultBase64 = canvas.toDataURL('image/png').split(',')[1];
+    resolve(resultBase64);
+  });
+}
+
+/**
  * Versão melhorada que calcula transformação baseada em landmarks
  */
 export async function transformToTemplate(

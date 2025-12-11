@@ -20,7 +20,7 @@ import {
   type CorporateTemplate,
   type ValidationResult
 } from './corporateTemplate';
-import { transformToTemplate } from './geometricTransform';
+import { transformToTemplate, transformToTemplateWithFixedScale } from './geometricTransform';
 
 /**
  * Resultado da normalização profissional
@@ -63,6 +63,7 @@ export async function normalizeHeadshotProfessional(
     eyesY: number;
     shouldersY: number;
     headSize: number;
+    fixedScale?: number;
   }
 ): Promise<NormalizationResult> {
   const startTime = performance.now();
@@ -154,12 +155,27 @@ export async function normalizeHeadshotProfessional(
         }
 
         // PASSO 5: Aplicar transformação geométrica
-        const normalizedImage = await transformToTemplate(
-          img,
-          analysis.landmarks,
-          config.template,
-          config.backgroundColor
-        );
+        let normalizedImage: string;
+
+        if (referenceMetrics?.fixedScale) {
+          // Usar escala FIXA para garantir padronização absoluta
+          console.log('🔒 Usando escala fixa:', referenceMetrics.fixedScale.toFixed(4));
+          normalizedImage = await transformToTemplateWithFixedScale(
+            img,
+            analysis.landmarks,
+            config.template,
+            referenceMetrics.fixedScale,
+            config.backgroundColor
+          );
+        } else {
+          // Calcular transformação individual
+          normalizedImage = await transformToTemplate(
+            img,
+            analysis.landmarks,
+            config.template,
+            config.backgroundColor
+          );
+        }
 
         resolve({
           success: true,
@@ -262,10 +278,21 @@ export async function normalizeBatchProfessional(
     const shouldersYValues = successfulResults.map((r) => r.metrics.shouldersY).sort((a, b) => a - b);
     const headSizeValues = successfulResults.map((r) => r.metrics.headSize).sort((a, b) => a - b);
 
+    // Calcular escala fixa do fallback
+    const eyeDistances = successfulResults
+      .map((r) => r.analysis?.landmarks.eyeDistance)
+      .filter((d): d is number => d !== undefined)
+      .sort((a, b) => a - b);
+
+    const medianEyeDistance = eyeDistances[Math.floor(eyeDistances.length / 2)];
+    const targetEyeDistance = fullConfig.template.width * 0.25;
+    const fixedScale = targetEyeDistance / medianEyeDistance;
+
     const referenceMetrics = {
       eyesY: eyesYValues[Math.floor(eyesYValues.length / 2)],
       shouldersY: shouldersYValues[Math.floor(shouldersYValues.length / 2)],
-      headSize: headSizeValues[Math.floor(headSizeValues.length / 2)]
+      headSize: headSizeValues[Math.floor(headSizeValues.length / 2)],
+      fixedScale
     };
 
     console.log('📊 Métricas de referência (fallback):', referenceMetrics);
@@ -288,13 +315,32 @@ export async function normalizeBatchProfessional(
   const shouldersYValues = validResults.map((r) => r.metrics.shouldersY).sort((a, b) => a - b);
   const headSizeValues = validResults.map((r) => r.metrics.headSize).sort((a, b) => a - b);
 
+  // Calcular ESCALA FIXA baseada na distância entre olhos das imagens válidas
+  const eyeDistances = validResults
+    .map((r) => r.analysis?.landmarks.eyeDistance)
+    .filter((d): d is number => d !== undefined)
+    .sort((a, b) => a - b);
+
+  const medianEyeDistance = eyeDistances[Math.floor(eyeDistances.length / 2)];
+
+  // Distância ideal entre olhos no template (25% da largura)
+  const targetEyeDistance = fullConfig.template.width * 0.25;
+
+  // Calcular escala fixa
+  const fixedScale = targetEyeDistance / medianEyeDistance;
+
   const referenceMetrics = {
     eyesY: eyesYValues[Math.floor(eyesYValues.length / 2)],
     shouldersY: shouldersYValues[Math.floor(shouldersYValues.length / 2)],
-    headSize: headSizeValues[Math.floor(headSizeValues.length / 2)]
+    headSize: headSizeValues[Math.floor(headSizeValues.length / 2)],
+    fixedScale
   };
 
-  console.log('✅ Métricas de referência (de imagens válidas):', referenceMetrics);
+  console.log('✅ Métricas de referência (de imagens válidas):', {
+    ...referenceMetrics,
+    medianEyeDistance: medianEyeDistance.toFixed(1),
+    targetEyeDistance: targetEyeDistance.toFixed(1)
+  });
 
   // FASE 3: Normalizar novamente usando referência
   console.log('🔄 Aplicando normalização final com referência...');
