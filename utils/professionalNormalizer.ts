@@ -40,6 +40,7 @@ export interface NormalizationResult {
   };
   warnings: string[];
   processingTime: number;
+  shoulderDetectionValid: boolean; // Se a detecção de ombros foi confiável
 }
 
 /**
@@ -78,6 +79,7 @@ export async function normalizeHeadshotProfessional(
         const analysis = await analyzePose(img);
 
         if (!analysis) {
+          console.error('❌ Falha ao detectar pose na imagem');
           resolve({
             success: false,
             normalizedImage: imageBase64,
@@ -86,13 +88,25 @@ export async function normalizeHeadshotProfessional(
             validation: null,
             metrics: { eyesY: 0, shouldersY: 0, headSize: 0, rotationAngle: 0, shoulderRotation: 0 },
             warnings: ['Falha ao detectar face na imagem'],
-            processingTime: performance.now() - startTime
+            processingTime: performance.now() - startTime,
+            shoulderDetectionValid: false
           });
           return;
         }
 
-        // PASSO 2: Extrair métricas (agora com ombros REAIS detectados)
-        const metrics = {
+        // PASSO 2: Validar qualidade da detecção de ombros
+        const shoulderDetectionValid = validateShoulderDetection(analysis.landmarks);
+
+        console.log('📊 Detecção:', {
+          eyesY: analysis.landmarks.eyesCenter.y.toFixed(1),
+          shouldersY: analysis.landmarks.shouldersCenter.y.toFixed(1),
+          eyeToShoulderDist: analysis.landmarks.eyeToShoulderDistance.toFixed(1),
+          shoulderWidth: analysis.landmarks.shoulderWidth.toFixed(1),
+          shoulderValid: shoulderDetectionValid
+        });
+
+        // PASSO 3: Extrair métricas (com ajuste se detecção falhar)
+        let metrics = {
           eyesY: analysis.landmarks.eyesCenter.y,
           shouldersY: analysis.landmarks.shouldersCenter.y,
           headSize: analysis.landmarks.headSize,
@@ -100,9 +114,18 @@ export async function normalizeHeadshotProfessional(
           shoulderRotation: analysis.landmarks.shoulderRotation
         };
 
-        // Validar detecção dos ombros
-        if (!validateShoulderDetection(analysis.landmarks)) {
-          console.warn('⚠️ Ombros detectados em posições suspeitas - pode haver erro na detecção');
+        // Se detecção de ombros falhou E temos referência, usar referência
+        if (!shoulderDetectionValid && referenceMetrics) {
+          console.warn('⚠️ Ombros inválidos - usando métricas de referência');
+          const refEyeToShoulder = referenceMetrics.shouldersY - referenceMetrics.eyesY;
+          metrics.shouldersY = metrics.eyesY + refEyeToShoulder;
+          metrics.headSize = referenceMetrics.headSize;
+          console.log('🔧 Ajustado para shouldersY:', metrics.shouldersY.toFixed(1));
+        } else if (!shoulderDetectionValid) {
+          console.warn('⚠️ Ombros inválidos - usando estimativa anatômica');
+          const estimatedDist = analysis.landmarks.eyeDistance * 4.5;
+          metrics.shouldersY = metrics.eyesY + estimatedDist;
+          metrics.headSize = analysis.landmarks.eyeDistance * 3.0;
         }
 
         // PASSO 3: Validar contra template
@@ -124,7 +147,8 @@ export async function normalizeHeadshotProfessional(
             validation,
             metrics,
             warnings,
-            processingTime: performance.now() - startTime
+            processingTime: performance.now() - startTime,
+            shoulderDetectionValid
           });
           return;
         }
@@ -145,7 +169,8 @@ export async function normalizeHeadshotProfessional(
           validation,
           metrics,
           warnings: config.showWarnings ? warnings : [],
-          processingTime: performance.now() - startTime
+          processingTime: performance.now() - startTime,
+          shoulderDetectionValid
         });
       } catch (error) {
         console.error('Erro na normalização:', error);
@@ -155,9 +180,10 @@ export async function normalizeHeadshotProfessional(
           originalImage: imageBase64,
           analysis: null,
           validation: null,
-          metrics: { eyesY: 0, shouldersY: 0, headSize: 0, rotationAngle: 0 },
+          metrics: { eyesY: 0, shouldersY: 0, headSize: 0, rotationAngle: 0, shoulderRotation: 0 },
           warnings: [`Erro no processamento: ${error}`],
-          processingTime: performance.now() - startTime
+          processingTime: performance.now() - startTime,
+          shoulderDetectionValid: false
         });
       }
     };
@@ -169,9 +195,10 @@ export async function normalizeHeadshotProfessional(
         originalImage: imageBase64,
         analysis: null,
         validation: null,
-        metrics: { eyesY: 0, shouldersY: 0, headSize: 0, rotationAngle: 0 },
+        metrics: { eyesY: 0, shouldersY: 0, headSize: 0, rotationAngle: 0, shoulderRotation: 0 },
         warnings: ['Falha ao carregar imagem'],
-        processingTime: performance.now() - startTime
+        processingTime: performance.now() - startTime,
+        shoulderDetectionValid: false
       });
     };
 
@@ -217,16 +244,49 @@ export async function normalizeBatchProfessional(
   }
 
   // FASE 2: Calcular métricas de referência (mediana)
-  const successfulResults = initialResults.filter((r) => r.success);
+  // CRUCIAL: Usar apenas imagens com detecção de ombros VÁLIDA
+  const validResults = initialResults.filter((r) => r.success && r.shoulderDetectionValid);
 
-  if (successfulResults.length === 0) {
-    console.warn('⚠️ Nenhuma imagem foi processada com sucesso');
-    return initialResults;
+  console.log(`📊 ${validResults.length}/${initialResults.length} imagens com detecção de ombros válida`);
+
+  if (validResults.length === 0) {
+    console.warn('⚠️ Nenhuma imagem tem detecção de ombros válida - usando todas');
+    // Fallback: usar todas as imagens bem-sucedidas
+    const successfulResults = initialResults.filter((r) => r.success);
+    if (successfulResults.length === 0) {
+      console.error('❌ Nenhuma imagem processada com sucesso');
+      return initialResults;
+    }
+
+    const eyesYValues = successfulResults.map((r) => r.metrics.eyesY).sort((a, b) => a - b);
+    const shouldersYValues = successfulResults.map((r) => r.metrics.shouldersY).sort((a, b) => a - b);
+    const headSizeValues = successfulResults.map((r) => r.metrics.headSize).sort((a, b) => a - b);
+
+    const referenceMetrics = {
+      eyesY: eyesYValues[Math.floor(eyesYValues.length / 2)],
+      shouldersY: shouldersYValues[Math.floor(shouldersYValues.length / 2)],
+      headSize: headSizeValues[Math.floor(headSizeValues.length / 2)]
+    };
+
+    console.log('📊 Métricas de referência (fallback):', referenceMetrics);
+
+    // Continuar com normalização final
+    console.log('🔄 Aplicando normalização final com referência...');
+    const finalResults: NormalizationResult[] = [];
+
+    for (let i = 0; i < images.length; i++) {
+      console.log(`  Normalizando imagem ${i + 1}/${images.length}...`);
+      const result = await normalizeHeadshotProfessional(images[i], fullConfig, referenceMetrics);
+      finalResults.push(result);
+    }
+
+    return finalResults;
   }
 
-  const eyesYValues = successfulResults.map((r) => r.metrics.eyesY).sort((a, b) => a - b);
-  const shouldersYValues = successfulResults.map((r) => r.metrics.shouldersY).sort((a, b) => a - b);
-  const headSizeValues = successfulResults.map((r) => r.metrics.headSize).sort((a, b) => a - b);
+  // Calcular mediana apenas das imagens COM ombros válidos
+  const eyesYValues = validResults.map((r) => r.metrics.eyesY).sort((a, b) => a - b);
+  const shouldersYValues = validResults.map((r) => r.metrics.shouldersY).sort((a, b) => a - b);
+  const headSizeValues = validResults.map((r) => r.metrics.headSize).sort((a, b) => a - b);
 
   const referenceMetrics = {
     eyesY: eyesYValues[Math.floor(eyesYValues.length / 2)],
@@ -234,7 +294,7 @@ export async function normalizeBatchProfessional(
     headSize: headSizeValues[Math.floor(headSizeValues.length / 2)]
   };
 
-  console.log('📊 Métricas de referência calculadas:', referenceMetrics);
+  console.log('✅ Métricas de referência (de imagens válidas):', referenceMetrics);
 
   // FASE 3: Normalizar novamente usando referência
   console.log('🔄 Aplicando normalização final com referência...');
