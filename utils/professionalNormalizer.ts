@@ -6,10 +6,10 @@
 
 import {
   detectBodyLandmarks,
-  estimateShoulderPosition,
   analyzePose,
   initializePoseDetector,
-  type BodyLandmarks,
+  validateShoulderDetection,
+  type FullBodyLandmarks,
   type PoseAnalysis
 } from './poseDetector';
 import {
@@ -36,6 +36,7 @@ export interface NormalizationResult {
     shouldersY: number;
     headSize: number;
     rotationAngle: number;
+    shoulderRotation: number;
   };
   warnings: string[];
   processingTime: number;
@@ -83,21 +84,26 @@ export async function normalizeHeadshotProfessional(
             originalImage: imageBase64,
             analysis: null,
             validation: null,
-            metrics: { eyesY: 0, shouldersY: 0, headSize: 0, rotationAngle: 0 },
+            metrics: { eyesY: 0, shouldersY: 0, headSize: 0, rotationAngle: 0, shoulderRotation: 0 },
             warnings: ['Falha ao detectar face na imagem'],
             processingTime: performance.now() - startTime
           });
           return;
         }
 
-        // PASSO 2: Extrair métricas
-        const shoulders = estimateShoulderPosition(analysis.landmarks);
+        // PASSO 2: Extrair métricas (agora com ombros REAIS detectados)
         const metrics = {
           eyesY: analysis.landmarks.eyesCenter.y,
-          shouldersY: shoulders.shouldersY,
+          shouldersY: analysis.landmarks.shouldersCenter.y,
           headSize: analysis.landmarks.headSize,
-          rotationAngle: analysis.landmarks.headRotation
+          rotationAngle: analysis.landmarks.headRotation,
+          shoulderRotation: analysis.landmarks.shoulderRotation
         };
+
+        // Validar detecção dos ombros
+        if (!validateShoulderDetection(analysis.landmarks)) {
+          console.warn('⚠️ Ombros detectados em posições suspeitas - pode haver erro na detecção');
+        }
 
         // PASSO 3: Validar contra template
         const validation = validateAgainstTemplate(

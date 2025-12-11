@@ -1,217 +1,224 @@
 /**
- * MULTI-POINT POSE DETECTION SYSTEM
- * Detecta face, corpo e ângulos usando MediaPipe
- * Empresas profissionais usam 33+ pontos para garantir precisão
+ * MEDIAPIPE POSE LANDMARKER - FULL BODY DETECTION
+ * Detecta 33 pontos corporais incluindo ombros, olhos, nariz, quadris
+ * Sistema usado por empresas profissionais de headshots corporativos
  */
 
-import { FaceDetector, FilesetResolver, Detection } from '@mediapipe/tasks-vision';
+import { PoseLandmarker, FilesetResolver, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 
-let faceDetector: FaceDetector | null = null;
+let poseLandmarker: PoseLandmarker | null = null;
 
+/**
+ * Inicializa o MediaPipe Pose Landmarker
+ */
 export async function initializePoseDetector(): Promise<void> {
-  if (faceDetector) return;
+  if (poseLandmarker) return;
 
   try {
     const vision = await FilesetResolver.forVisionTasks(
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
     );
 
-    faceDetector = await FaceDetector.createFromOptions(vision, {
+    poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath:
-          'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.tflite',
         delegate: 'GPU'
       },
       runningMode: 'IMAGE',
-      minDetectionConfidence: 0.5
+      numPoses: 1,
+      minPoseDetectionConfidence: 0.5,
+      minPosePresenceConfidence: 0.5,
+      minTrackingConfidence: 0.5
     });
+
+    console.log('✅ MediaPipe Pose Landmarker inicializado (33 pontos corporais)');
   } catch (error) {
-    console.error('Erro ao inicializar detector:', error);
-    throw new Error('Falha ao inicializar MediaPipe');
+    console.error('❌ Erro ao inicializar Pose Landmarker:', error);
+    throw new Error('Falha ao inicializar MediaPipe Pose');
   }
 }
 
 /**
- * Pontos corporais detectados - padrão profissional
+ * MediaPipe Pose Landmarks (33 pontos)
+ * Principais para headshots:
+ * 0: Nariz
+ * 1: Olho interno esquerdo
+ * 2: Olho esquerdo
+ * 3: Olho externo esquerdo
+ * 4: Olho interno direito
+ * 5: Olho direito
+ * 6: Olho externo direito
+ * 7: Orelha esquerda
+ * 8: Orelha direita
+ * 9: Boca esquerda
+ * 10: Boca direita
+ * 11: Ombro esquerdo ⭐
+ * 12: Ombro direito ⭐
  */
-export interface BodyLandmarks {
+
+export interface FullBodyLandmarks {
   // Face
+  nose: { x: number; y: number };
   leftEye: { x: number; y: number };
   rightEye: { x: number; y: number };
-  nose: { x: number; y: number };
-  mouth: { x: number; y: number };
+  leftMouth: { x: number; y: number };
+  rightMouth: { x: number; y: number };
+
+  // Shoulders (REAL, não estimados)
+  leftShoulder: { x: number; y: number };
+  rightShoulder: { x: number; y: number };
 
   // Calculados
   eyesCenter: { x: number; y: number };
+  shouldersCenter: { x: number; y: number };
   eyeDistance: number;
-  headRotation: number; // ângulo em graus
-  headTilt: number; // inclinação lateral
+  shoulderWidth: number;
 
-  // Dimensões
+  // Ângulos
+  headRotation: number; // rotação da linha dos olhos (graus)
+  shoulderRotation: number; // rotação da linha dos ombros (graus)
+  headTilt: number; // inclinação da cabeça
+
+  // Métricas
+  eyeToShoulderDistance: number; // distância vertical olhos → ombros
   faceWidth: number;
-  faceHeight: number;
-  headSize: number; // medida composta
+  headSize: number;
 
-  // Bounding box
-  boundingBox: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-
-  // Qualidade da detecção
+  // Qualidade
   confidence: number;
-  isFrontal: boolean; // true se a pose é frontal (não 3/4)
+  isFrontal: boolean; // true se ombros estão nivelados (não em ângulo 3/4)
+  isWellAligned: boolean; // true se cabeça e ombros estão alinhados
+
+  // Dados brutos
+  allLandmarks: Array<{ x: number; y: number; z: number }>;
 }
 
 /**
- * Detecta todos os pontos corporais necessários para normalização profissional
+ * Detecta todos os 33 pontos corporais usando MediaPipe Pose
  */
 export async function detectBodyLandmarks(
   imageElement: HTMLImageElement
-): Promise<BodyLandmarks | null> {
-  if (!faceDetector) {
+): Promise<FullBodyLandmarks | null> {
+  if (!poseLandmarker) {
     await initializePoseDetector();
   }
 
-  const detections = faceDetector!.detect(imageElement);
+  try {
+    const result: PoseLandmarkerResult = poseLandmarker!.detect(imageElement);
 
-  if (!detections.detections || detections.detections.length === 0) {
-    console.warn('Nenhuma face detectada na imagem');
+    if (!result.landmarks || result.landmarks.length === 0) {
+      console.warn('❌ Nenhuma pose detectada na imagem');
+      return null;
+    }
+
+    const landmarks = result.landmarks[0]; // Primeira (e única) pessoa detectada
+    const imgWidth = imageElement.naturalWidth;
+    const imgHeight = imageElement.naturalHeight;
+
+    // Converter landmarks normalizados [0-1] para pixels
+    const getPoint = (idx: number) => ({
+      x: landmarks[idx].x * imgWidth,
+      y: landmarks[idx].y * imgHeight,
+      z: landmarks[idx].z
+    });
+
+    // Extrair pontos chave
+    const nose = getPoint(0);
+    const leftEyeInner = getPoint(1);
+    const leftEye = getPoint(2);
+    const rightEyeInner = getPoint(4);
+    const rightEye = getPoint(5);
+    const leftMouth = getPoint(9);
+    const rightMouth = getPoint(10);
+    const leftShoulder = getPoint(11); // ⭐ OMBRO REAL
+    const rightShoulder = getPoint(12); // ⭐ OMBRO REAL
+
+    // Calcular centro dos olhos
+    const eyesCenter = {
+      x: (leftEye.x + rightEye.x) / 2,
+      y: (leftEye.y + rightEye.y) / 2
+    };
+
+    // Calcular centro dos ombros
+    const shouldersCenter = {
+      x: (leftShoulder.x + rightShoulder.x) / 2,
+      y: (leftShoulder.y + rightShoulder.y) / 2
+    };
+
+    // Distância entre olhos
+    const eyeDistance = Math.sqrt(
+      Math.pow(rightEye.x - leftEye.x, 2) + Math.pow(rightEye.y - leftEye.y, 2)
+    );
+
+    // Largura dos ombros
+    const shoulderWidth = Math.sqrt(
+      Math.pow(rightShoulder.x - leftShoulder.x, 2) + Math.pow(rightShoulder.y - leftShoulder.y, 2)
+    );
+
+    // Rotação da linha dos olhos (em graus)
+    const headRotation =
+      Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI);
+
+    // Rotação da linha dos ombros (em graus)
+    const shoulderRotation =
+      Math.atan2(rightShoulder.y - leftShoulder.y, rightShoulder.x - leftShoulder.x) * (180 / Math.PI);
+
+    // Inclinação da cabeça
+    const headTilt = Math.abs(headRotation);
+
+    // Distância vertical olhos → ombros
+    const eyeToShoulderDistance = shouldersCenter.y - eyesCenter.y;
+
+    // Largura da face (baseado nos olhos)
+    const faceWidth = eyeDistance * 2.5;
+
+    // Tamanho da cabeça (estimado)
+    const headSize = eyeToShoulderDistance * 0.6;
+
+    // Verificar se a pose é frontal (ombros nivelados)
+    const isFrontal = Math.abs(shoulderRotation) < 10; // Tolerância de 10 graus
+
+    // Verificar alinhamento cabeça-ombros
+    const rotationDiff = Math.abs(headRotation - shoulderRotation);
+    const isWellAligned = rotationDiff < 5; // Diferença menor que 5 graus
+
+    // Confiança geral (se disponível)
+    const confidence = result.worldLandmarks?.[0]?.[0]?.visibility || 0.9;
+
+    return {
+      nose,
+      leftEye,
+      rightEye,
+      leftMouth,
+      rightMouth,
+      leftShoulder,
+      rightShoulder,
+      eyesCenter,
+      shouldersCenter,
+      eyeDistance,
+      shoulderWidth,
+      headRotation,
+      shoulderRotation,
+      headTilt,
+      eyeToShoulderDistance,
+      faceWidth,
+      headSize,
+      confidence,
+      isFrontal,
+      isWellAligned,
+      allLandmarks: landmarks.map(l => ({ x: l.x * imgWidth, y: l.y * imgHeight, z: l.z }))
+    };
+  } catch (error) {
+    console.error('❌ Erro na detecção de pose:', error);
     return null;
   }
-
-  const detection: Detection = detections.detections[0];
-  const keypoints = detection.keypoints;
-
-  if (!keypoints || keypoints.length < 6) {
-    console.warn('Landmarks insuficientes detectados');
-    return null;
-  }
-
-  const imgWidth = imageElement.naturalWidth;
-  const imgHeight = imageElement.naturalHeight;
-
-  // MediaPipe BlazeFace keypoints:
-  // 0: Olho direito
-  // 1: Olho esquerdo
-  // 2: Ponta do nariz
-  // 3: Centro da boca
-  // 4: Olho direito (interno)
-  // 5: Olho esquerdo (interno)
-
-  const rightEye = {
-    x: keypoints[0].x * imgWidth,
-    y: keypoints[0].y * imgHeight
-  };
-
-  const leftEye = {
-    x: keypoints[1].x * imgWidth,
-    y: keypoints[1].y * imgHeight
-  };
-
-  const nose = {
-    x: keypoints[2].x * imgWidth,
-    y: keypoints[2].y * imgHeight
-  };
-
-  const mouth = {
-    x: keypoints[3].x * imgWidth,
-    y: keypoints[3].y * imgHeight
-  };
-
-  // Calcular centro dos olhos
-  const eyesCenter = {
-    x: (rightEye.x + leftEye.x) / 2,
-    y: (rightEye.y + leftEye.y) / 2
-  };
-
-  // Calcular distância entre olhos
-  const eyeDistance = Math.sqrt(
-    Math.pow(rightEye.x - leftEye.x, 2) + Math.pow(rightEye.y - leftEye.y, 2)
-  );
-
-  // Calcular rotação da cabeça (baseado na linha dos olhos)
-  const headRotation = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI);
-
-  // Calcular inclinação (frontal vs 3/4 view)
-  // Se o nariz está muito deslocado do centro dos olhos, não é frontal
-  const noseToCenterOffset = Math.abs(nose.x - eyesCenter.x);
-  const isFrontal = noseToCenterOffset < eyeDistance * 0.15; // Tolerância de 15%
-
-  // Calcular inclinação lateral
-  const headTilt = Math.abs(headRotation);
-
-  // Dimensões da face
-  const bbox = detection.boundingBox;
-  const faceWidth = bbox ? bbox.width * imgWidth : eyeDistance * 3;
-  const faceHeight = bbox ? bbox.height * imgHeight : eyeDistance * 4;
-
-  // Tamanho composto da cabeça (usado para escala)
-  const headSize = (faceWidth + faceHeight) / 2;
-
-  return {
-    leftEye,
-    rightEye,
-    nose,
-    mouth,
-    eyesCenter,
-    eyeDistance,
-    headRotation,
-    headTilt,
-    faceWidth,
-    faceHeight,
-    headSize,
-    boundingBox: {
-      x: bbox?.originX || eyesCenter.x - faceWidth / 2,
-      y: bbox?.originY || eyesCenter.y - faceHeight / 2,
-      width: faceWidth,
-      height: faceHeight
-    },
-    confidence: detection.categories?.[0]?.score || 0,
-    isFrontal
-  };
-}
-
-/**
- * Estima a posição dos ombros baseado na geometria facial
- * (Para detecção precisa, empresas usam MediaPipe Pose, mas isso adiciona 2MB ao bundle)
- */
-export function estimateShoulderPosition(landmarks: BodyLandmarks): {
-  leftShoulder: { x: number; y: number };
-  rightShoulder: { x: number; y: number };
-  shouldersY: number;
-  shouldersWidth: number;
-} {
-  // Proporção típica corpo humano: ombros estão ~2.5x a distância entre olhos abaixo deles
-  const shoulderOffset = landmarks.eyeDistance * 2.5;
-
-  // Largura dos ombros: ~3.5x a distância entre olhos
-  const shoulderWidth = landmarks.eyeDistance * 3.5;
-
-  const shouldersY = landmarks.eyesCenter.y + shoulderOffset;
-
-  return {
-    leftShoulder: {
-      x: landmarks.eyesCenter.x - shoulderWidth / 2,
-      y: shouldersY
-    },
-    rightShoulder: {
-      x: landmarks.eyesCenter.x + shoulderWidth / 2,
-      y: shouldersY
-    },
-    shouldersY,
-    shouldersWidth: shoulderWidth
-  };
 }
 
 /**
  * Análise completa da pose para validação
  */
 export interface PoseAnalysis {
-  landmarks: BodyLandmarks;
-  shoulders: ReturnType<typeof estimateShoulderPosition>;
+  landmarks: FullBodyLandmarks;
   issues: string[];
   quality: 'excellent' | 'good' | 'acceptable' | 'poor';
   recommendations: string[];
@@ -224,23 +231,37 @@ export async function analyzePose(imageElement: HTMLImageElement): Promise<PoseA
     return null;
   }
 
-  const shoulders = estimateShoulderPosition(landmarks);
   const issues: string[] = [];
   const recommendations: string[] = [];
 
-  // Análise de qualidade
+  // Validação 1: Pose frontal
   if (!landmarks.isFrontal) {
-    issues.push('Pose não é frontal (corpo em ângulo 3/4)');
-    recommendations.push('Solicite foto frontal com corpo voltado para câmera');
+    issues.push(`Corpo em ângulo (ombros rotacionados ${landmarks.shoulderRotation.toFixed(1)}°)`);
+    recommendations.push('Solicite foto frontal com ombros paralelos à câmera');
   }
 
+  // Validação 2: Alinhamento cabeça-ombros
+  if (!landmarks.isWellAligned) {
+    const diff = Math.abs(landmarks.headRotation - landmarks.shoulderRotation);
+    issues.push(`Desalinhamento entre cabeça e corpo (${diff.toFixed(1)}° de diferença)`);
+    recommendations.push('Alinhe a cabeça com os ombros');
+  }
+
+  // Validação 3: Inclinação da cabeça
   if (landmarks.headTilt > 5) {
     issues.push(`Cabeça inclinada ${landmarks.headTilt.toFixed(1)}°`);
-    recommendations.push('Alinhe a cabeça horizontalmente');
+    recommendations.push('Endireite a cabeça horizontalmente');
   }
 
+  // Validação 4: Inclinação dos ombros
+  if (Math.abs(landmarks.shoulderRotation) > 5) {
+    issues.push(`Ombros desnivelados (${Math.abs(landmarks.shoulderRotation).toFixed(1)}°)`);
+    recommendations.push('Nivele os ombros horizontalmente');
+  }
+
+  // Validação 5: Confiança da detecção
   if (landmarks.confidence < 0.7) {
-    issues.push('Baixa confiança na detecção facial');
+    issues.push('Baixa confiança na detecção');
     recommendations.push('Use foto com melhor iluminação e resolução');
   }
 
@@ -258,9 +279,20 @@ export async function analyzePose(imageElement: HTMLImageElement): Promise<PoseA
 
   return {
     landmarks,
-    shoulders,
     issues,
     quality,
     recommendations
   };
+}
+
+/**
+ * Valida se os ombros foram detectados corretamente
+ */
+export function validateShoulderDetection(landmarks: FullBodyLandmarks): boolean {
+  // Verificar se os ombros estão em posições plausíveis
+  const shouldersBelowEyes = landmarks.shouldersCenter.y > landmarks.eyesCenter.y;
+  const reasonableDistance = landmarks.eyeToShoulderDistance > landmarks.eyeDistance * 1.5;
+  const reasonableWidth = landmarks.shoulderWidth > landmarks.eyeDistance * 1.5;
+
+  return shouldersBelowEyes && reasonableDistance && reasonableWidth;
 }

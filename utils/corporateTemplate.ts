@@ -150,6 +150,7 @@ export function validateAgainstTemplate(
     shouldersY: number;
     headSize: number;
     rotationAngle: number;
+    shoulderRotation?: number; // Rotação dos ombros (opcional)
   },
   template: CorporateTemplate,
   referencePoints?: {
@@ -179,6 +180,14 @@ export function validateAgainstTemplate(
       );
     }
 
+    // Validação rigorosa de ombros entre imagens
+    const shoulderVariation = Math.abs(detectedPoints.shouldersY - referencePoints.shouldersY);
+    if (shoulderVariation > template.tolerances.shoulderHeightVariation) {
+      warnings.push(
+        `Ombros inconsistentes entre imagens: ${shoulderVariation.toFixed(1)}px de variação`
+      );
+    }
+
     const headSizeVariation = Math.abs(
       (detectedPoints.headSize - referencePoints.headSize) / referencePoints.headSize
     );
@@ -189,16 +198,29 @@ export function validateAgainstTemplate(
     }
   }
 
-  // Validação 3: Rotação
+  // Validação 3: Rotação da cabeça
   if (Math.abs(detectedPoints.rotationAngle) > template.tolerances.rotationAngle) {
     errors.push(
       `Cabeça inclinada: ${detectedPoints.rotationAngle.toFixed(1)}° (máx: ±${template.tolerances.rotationAngle}°)`
     );
   }
 
-  // Validação 4: Ombros
+  // Validação 4: Rotação dos ombros (se disponível)
+  if (detectedPoints.shoulderRotation !== undefined) {
+    if (Math.abs(detectedPoints.shoulderRotation) > template.tolerances.rotationAngle) {
+      errors.push(
+        `Ombros desnivelados: ${detectedPoints.shoulderRotation.toFixed(1)}° (máx: ±${template.tolerances.rotationAngle}°)`
+      );
+    }
+  }
+
+  // Validação 5: Altura dos ombros
   const shoulderDeviation = Math.abs(detectedPoints.shouldersY - anchors.shouldersY);
-  if (shoulderDeviation > template.tolerances.shoulderHeightVariation) {
+  if (shoulderDeviation > template.tolerances.shoulderHeightVariation * 2) {
+    errors.push(
+      `Ombros muito fora da posição: ${shoulderDeviation.toFixed(1)}px de desvio`
+    );
+  } else if (shoulderDeviation > template.tolerances.shoulderHeightVariation) {
     warnings.push(
       `Ombros fora da posição padrão: ${shoulderDeviation.toFixed(1)}px de desvio`
     );

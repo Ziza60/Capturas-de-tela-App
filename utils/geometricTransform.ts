@@ -4,7 +4,7 @@
  * Garante que TODAS as imagens se encaixem perfeitamente no template
  */
 
-import type { BodyLandmarks } from './poseDetector';
+import type { FullBodyLandmarks } from './poseDetector';
 import type { CorporateTemplate } from './corporateTemplate';
 import { getAbsoluteAnchorPoints } from './corporateTemplate';
 
@@ -22,7 +22,7 @@ interface TransformMatrix {
  * Calcula a transformação necessária para alinhar os landmarks ao template
  */
 export function calculateTransform(
-  landmarks: BodyLandmarks,
+  landmarks: FullBodyLandmarks,
   template: CorporateTemplate
 ): TransformMatrix {
   const anchors = getAbsoluteAnchorPoints(template);
@@ -137,7 +137,7 @@ export async function applyGeometricTransform(
  */
 export async function transformToTemplate(
   imageElement: HTMLImageElement,
-  landmarks: BodyLandmarks,
+  landmarks: FullBodyLandmarks,
   template: CorporateTemplate,
   backgroundColor: string = '#F5F5F5'
 ): Promise<string> {
