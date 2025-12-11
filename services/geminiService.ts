@@ -9,16 +9,16 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // --- KEY ROTATION LOGIC ---
 // Detect available keys from environment variables
 const API_KEYS = [
-  process.env.API_KEY,
-  process.env.API_KEY_2,
-  process.env.API_KEY_3,
-  process.env.API_KEY_4,
-  process.env.API_KEY_5
+  import.meta.env.VITE_API_KEY,
+  import.meta.env.VITE_API_KEY_2,
+  import.meta.env.VITE_API_KEY_3,
+  import.meta.env.VITE_API_KEY_4,
+  import.meta.env.VITE_API_KEY_5
 ].filter((key): key is string => !!key && key.length > 0);
 
 // Gets a specific key based on attempt number (Round Robin strategy)
 const getKeyForAttempt = (attemptIndex: number) => {
-    if (API_KEYS.length === 0) return process.env.API_KEY || '';
+    if (API_KEYS.length === 0) return import.meta.env.VITE_API_KEY || '';
     return API_KEYS[attemptIndex % API_KEYS.length];
 };
 
@@ -510,7 +510,7 @@ export async function generateSuggestions(
   uploadedFile: UploadedFile,
   style: StyleOption
 ): Promise<string[]> {
-    if (!process.env.API_KEY) return [];
+    if (!import.meta.env.VITE_API_KEY) return [];
     return [
         "Tente uma iluminação mais suave.",
         "Sorria com confiança!",
