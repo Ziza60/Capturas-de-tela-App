@@ -137,8 +137,9 @@ ${angleProtocol}
 [BODY & COMPOSITION WORKFLOW]
 1. **FACE ANCHOR:** Start with the source face geometry. Do not warp it.
 2. **BODY GENERATION:** Generate a professional body (suit/blazer) that fits the head's scale and angle.
-3. **SKIN MATCHING:** Ensure the neck and chest skin tone matches the face perfectly.
-4. **FRAMING:** Adhere to the requested aspect ratio and framing.
+3. **BODY ORIENTATION (CRITICAL):** Unless explicitly requested otherwise, body should face directly forward (0° rotation), shoulders parallel to camera.
+4. **SKIN MATCHING:** Ensure the neck and chest skin tone matches the face perfectly.
+5. **FRAMING:** Adhere to the requested aspect ratio and framing.
 
 [BACKGROUND LOGIC]
 1. ANALYZE THE TARGET STYLE.
@@ -345,6 +346,34 @@ Your goal is to generate a valid ID photo.
                 *** BATCH CONSISTENCY ENFORCEMENT ***
                 1. IGNORE ORIGINAL CROP.
                 2. ${framingStyle === 'close-up' ? FRAMING_PROMPTS['close-up'] : FRAMING_PROMPTS['chest-up']}
+
+                *** CRITICAL: BODY ORIENTATION STANDARDIZATION ***
+                [MANDATORY REQUIREMENTS FOR TEAM BATCH MODE]
+
+                BODY POSE PROTOCOL:
+                - Body MUST face directly forward at 0° rotation (never 3/4 or side angle)
+                - Shoulders MUST be parallel to the camera plane (both shoulders equally visible)
+                - Torso MUST be square to camera (no rotation or twist)
+                - Head MUST be straight with no tilt (ears at same height)
+                - Eyes looking directly at camera (straight ahead, not to the side)
+
+                IGNORE SOURCE PHOTO ORIENTATION:
+                - If reference photo shows body at angle → OVERRIDE and generate frontal
+                - If reference photo shows head tilted → STRAIGHTEN to vertical
+                - If reference photo is 3/4 pose → GENERATE full frontal instead
+                - DO NOT replicate the original body angle or pose direction
+
+                CONSISTENCY ENFORCEMENT:
+                - ALL team members MUST have IDENTICAL body orientation (0° frontal)
+                - ALL shoulders MUST be at SAME angle (parallel to camera)
+                - ALL heads MUST be vertical (no left/right tilt)
+                - ZERO variation in body rotation between batch subjects
+                - This creates professional team uniformity
+
+                VERIFICATION:
+                - Before finalizing, confirm: Would this person fit seamlessly in a corporate team grid?
+                - If body is angled even slightly → REJECT and regenerate frontal
+                - All 6 people in batch should look like they were photographed in same studio session
                 ` : ''}
 
                 ${userProfile?.gender ? `GENDER CALIBRATION: Ensure subject looks ${userProfile.gender}.` : ''}
