@@ -152,7 +152,7 @@ export async function normalizeHeadshot(
         ctx.drawImage(img, 0, 0);
         ctx.restore();
 
-        const resultBase64 = canvas.toDataURL('image/png').split(',')[1];
+        const resultBase64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
         resolve(resultBase64);
       } catch (error) {
         console.error('Erro na normalização:', error);

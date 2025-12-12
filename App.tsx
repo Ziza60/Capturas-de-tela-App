@@ -76,6 +76,7 @@ const App: React.FC = () => {
   });
 
   const [enableNormalization, setEnableNormalization] = useState<boolean>(true);
+  const [isNormalizing, setIsNormalizing] = useState<boolean>(false);
 
   // Modal State
   const [editingBatchItem, setEditingBatchItem] = useState<BatchItem | null>(null);
@@ -112,6 +113,7 @@ const App: React.FC = () => {
     // Debounce to prevent UI freeze
     const timer = setTimeout(async () => {
         if (!teamSettings.logo) return;
+        if (isNormalizing) return; // PREVENT CONFLICT DURING NORMALIZATION
 
         // 1. Single Mode Update
         if (!isBatchMode && rawGeneratedImage) {
@@ -136,7 +138,7 @@ const App: React.FC = () => {
     }, 200); // 200ms debounce
 
     return () => clearTimeout(timer);
-  }, [teamSettings, isBatchMode, rawGeneratedImage]); 
+  }, [teamSettings, isBatchMode, rawGeneratedImage, isNormalizing]); 
 
   const handleImageUpload = (fileOrFiles: UploadedFile | UploadedFile[]) => {
     const files = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
@@ -291,98 +293,88 @@ const App: React.FC = () => {
     }
 
     // NORMALIZAÇÃO PROFISSIONAL: Processar APÓS loop terminar
-    // Aguardar estado atualizar e então normalizar
     if (enableNormalization && isBatchMode) {
-        setTimeout(async () => {
-            setBatchQueue(currentQueue => {
-                const completedItems = currentQueue.filter(item => item.status === 'completed' && item.rawImage);
+        setIsNormalizing(true);
 
-                console.log('\n🔍 DEBUG - enableNormalization:', enableNormalization);
-                console.log('🔍 DEBUG - isBatchMode:', isBatchMode);
-                console.log('🔍 DEBUG - completedItems na fila:', completedItems.length);
+        const completedItems = batchQueue.filter(item => item.status === 'completed' && item.rawImage);
 
-                if (completedItems.length <= 1) {
-                    console.log('⚠️ Normalização cancelada - precisa de 2+ imagens');
-                    return currentQueue;
+        console.log('\n🔍 DEBUG - enableNormalization:', enableNormalization);
+        console.log('🔍 DEBUG - isBatchMode:', isBatchMode);
+        console.log('🔍 DEBUG - completedItems na fila:', completedItems.length);
+
+        if (completedItems.length > 1) {
+            console.log('\n═══════════════════════════════════════════════════');
+            console.log('🎯 NORMALIZAÇÃO PROFISSIONAL ATIVADA');
+            console.log('📊 Processando', completedItems.length, 'imagens');
+            console.log('═══════════════════════════════════════════════════\n');
+
+            try {
+                const rawImages = completedItems.map(item => item.rawImage!);
+
+                const normalizedResults = await normalizeBatchProfessional(rawImages, {
+                    backgroundColor: teamSettings.backgroundType === 'solid' ? teamSettings.backgroundColor : '#F5F5F5',
+                    strictMode: false,
+                    showWarnings: true
+                });
+
+                console.log('\n✅ NORMALIZAÇÃO CONCLUÍDA - Resultados:', normalizedResults.length);
+
+                const qualityReport = generateQualityReport(normalizedResults);
+                console.log('📊 Relatório de Qualidade:', qualityReport);
+
+                if (qualityReport.qualityDistribution.poor > 0) {
+                    console.warn('⚠️ Algumas imagens tiveram problemas:', qualityReport.commonIssues);
                 }
 
-                console.log('\n═══════════════════════════════════════════════════');
-                console.log('🎯 NORMALIZAÇÃO PROFISSIONAL ATIVADA');
-                console.log('📊 Processando', completedItems.length, 'imagens');
-                console.log('═══════════════════════════════════════════════════\n');
+                // Processar todas as imagens de uma vez, aplicando logo se necessário
+                const updatedItems = await Promise.all(
+                    completedItems.map(async (item, idx) => {
+                        const result = normalizedResults[idx];
 
-                // Iniciar normalização assíncrona
-                (async () => {
-                    try {
-                        const rawImages = completedItems.map(item => item.rawImage!);
+                        if (result && result.success) {
+                            const normalizedRaw = result.normalizedImage;
 
-                        const normalizedResults = await normalizeBatchProfessional(rawImages, {
-                            backgroundColor: teamSettings.backgroundType === 'solid' ? teamSettings.backgroundColor : '#F5F5F5',
-                            strictMode: false,
-                            showWarnings: true
-                        });
-
-                        console.log('\n✅ NORMALIZAÇÃO CONCLUÍDA - Resultados:', normalizedResults.length);
-
-                        // Gerar relatório de qualidade
-                        const qualityReport = generateQualityReport(normalizedResults);
-                        console.log('📊 Relatório de Qualidade:', qualityReport);
-
-                        if (qualityReport.qualityDistribution.poor > 0) {
-                            console.warn('⚠️ Algumas imagens tiveram problemas:', qualityReport.commonIssues);
-                        }
-
-                        // Atualizar fila com imagens normalizadas
-                        setBatchQueue(prevQueue => {
-                            return prevQueue.map((item) => {
-                                const completedIdx = completedItems.findIndex(ci => ci.id === item.id);
-                                if (completedIdx !== -1 && normalizedResults[completedIdx]) {
-                                    const result = normalizedResults[completedIdx];
-
-                                    if (result.success) {
-                                        const normalizedRaw = result.normalizedImage;
-
-                                        // Re-aplicar logo na imagem normalizada (será feito de forma assíncrona)
-                                        if (teamSettings.logo) {
-                                            overlayLogo(normalizedRaw, teamSettings.logo.base64, teamSettings)
-                                                .then(finalImage => {
-                                                    setBatchQueue(q => q.map(i =>
-                                                        i.id === item.id ? { ...i, rawImage: normalizedRaw, resultImage: finalImage } : i
-                                                    ));
-                                                })
-                                                .catch(overlayErr => {
-                                                    console.error('Erro ao aplicar logo:', overlayErr);
-                                                    setBatchQueue(q => q.map(i =>
-                                                        i.id === item.id ? { ...i, rawImage: normalizedRaw, resultImage: normalizedRaw } : i
-                                                    ));
-                                                });
-                                            return { ...item, rawImage: normalizedRaw };
-                                        }
-
-                                        return {
-                                            ...item,
-                                            rawImage: normalizedRaw,
-                                            resultImage: normalizedRaw
-                                        };
-                                    } else {
-                                        console.warn(`⚠️ Normalização falhou para ${item.file.name}:`, result.warnings);
-                                    }
+                            // Aplicar logo se configurado
+                            if (teamSettings.logo) {
+                                try {
+                                    const finalImage = await overlayLogo(normalizedRaw, teamSettings.logo.base64, teamSettings);
+                                    return { id: item.id, rawImage: normalizedRaw, resultImage: finalImage };
+                                } catch (overlayErr) {
+                                    console.error('Erro ao aplicar logo:', overlayErr);
+                                    return { id: item.id, rawImage: normalizedRaw, resultImage: normalizedRaw };
                                 }
-                                return item;
-                            });
-                        });
+                            }
 
-                        console.log('✅ Normalização profissional concluída!');
-                        console.log(`   • ${qualityReport.successful}/${qualityReport.totalImages} sucesso`);
-                        console.log(`   • Qualidade: ${qualityReport.qualityDistribution.excellent} excelente, ${qualityReport.qualityDistribution.good} bom`);
-                    } catch (normError) {
-                        console.error('❌ Erro na normalização profissional:', normError);
-                    }
-                })();
+                            return { id: item.id, rawImage: normalizedRaw, resultImage: normalizedRaw };
+                        } else {
+                            console.warn(`⚠️ Normalização falhou para ${item.file.name}:`, result?.warnings);
+                            return null;
+                        }
+                    })
+                );
 
-                return currentQueue;
-            });
-        }, 500);
+                // Atualizar fila UMA ÚNICA VEZ com todas as imagens processadas
+                setBatchQueue(prevQueue =>
+                    prevQueue.map(item => {
+                        const updated = updatedItems.find(u => u?.id === item.id);
+                        if (updated) {
+                            return { ...item, rawImage: updated.rawImage, resultImage: updated.resultImage };
+                        }
+                        return item;
+                    })
+                );
+
+                console.log('✅ Normalização profissional concluída!');
+                console.log(`   • ${qualityReport.successful}/${qualityReport.totalImages} sucesso`);
+                console.log(`   • Qualidade: ${qualityReport.qualityDistribution.excellent} excelente, ${qualityReport.qualityDistribution.good} bom`);
+            } catch (normError) {
+                console.error('❌ Erro na normalização profissional:', normError);
+            }
+        } else {
+            console.log('⚠️ Normalização cancelada - precisa de 2+ imagens');
+        }
+
+        setIsNormalizing(false);
     }
 
     setIsLoading(false);

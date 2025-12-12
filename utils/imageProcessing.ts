@@ -190,7 +190,7 @@ export async function overlayLogo(
       ctx!.drawImage(logoImg, x, y, targetWidth, targetHeight);
       
       // 6. Return Result
-      const resultDataUrl = canvas.toDataURL('image/png');
+      const resultDataUrl = canvas.toDataURL('image/jpeg', 0.92);
       resolve(resultDataUrl.split(',')[1]);
     }
   });

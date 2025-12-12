@@ -127,7 +127,7 @@ export async function applyGeometricTransform(
 
     ctx.restore();
 
-    const resultBase64 = canvas.toDataURL('image/png').split(',')[1];
+    const resultBase64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
     resolve(resultBase64);
   });
 }
@@ -187,7 +187,7 @@ export async function transformToTemplateWithFixedScale(
     ctx.drawImage(imageElement, 0, 0);
     ctx.restore();
 
-    const resultBase64 = canvas.toDataURL('image/png').split(',')[1];
+    const resultBase64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
     resolve(resultBase64);
   });
 }
@@ -250,7 +250,7 @@ export async function transformToTemplate(
 
     ctx.restore();
 
-    const resultBase64 = canvas.toDataURL('image/png').split(',')[1];
+    const resultBase64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
     resolve(resultBase64);
   });
 }
