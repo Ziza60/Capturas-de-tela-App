@@ -164,34 +164,35 @@ export async function transformToTemplateWithFixedScale(
     // Usar ESCALA FIXA (não calcular individualmente)
     const scale = fixedScale;
 
-    // Calcular apenas translação para alinhar olhos
+    // Calcular transformação para alinhar olhos
     const srcEyesX = landmarks.eyesCenter.x;
     const srcEyesY = landmarks.eyesCenter.y;
 
-    // Calcular offset necessário
-    const offsetX = anchors.centerX - srcEyesX * scale;
-    const offsetY = anchors.eyesY - srcEyesY * scale;
-
     console.log('🔍 Transform debug:', {
-      srcEyes: { x: srcEyesX, y: srcEyesY },
-      anchors: { centerX: anchors.centerX, eyesY: anchors.eyesY },
-      scale,
-      offset: { x: offsetX, y: offsetY },
+      srcEyes: { x: srcEyesX.toFixed(1), y: srcEyesY.toFixed(1) },
+      targetEyes: { x: anchors.centerX, y: anchors.eyesY },
+      scale: scale.toFixed(3),
       imgSize: { w: imageElement.width, h: imageElement.height },
-      rotation: landmarks.headRotation
+      rotation: landmarks.headRotation.toFixed(1)
     });
 
-    // Aplicar transformação
-    ctx.translate(offsetX, offsetY);
+    // ORDEM CORRETA DAS TRANSFORMAÇÕES:
+    // 1. Primeiro escalar
     ctx.scale(scale, scale);
 
-    // Rotação mínima apenas se muito desalinhado (>5°)
+    // 2. Depois transladar (já no sistema escalado)
+    const translateX = (anchors.centerX / scale) - srcEyesX;
+    const translateY = (anchors.eyesY / scale) - srcEyesY;
+    ctx.translate(translateX, translateY);
+
+    // 3. Rotação se necessário (em torno dos olhos)
     if (Math.abs(landmarks.headRotation) > 5) {
       ctx.translate(srcEyesX, srcEyesY);
       ctx.rotate(-landmarks.headRotation * Math.PI / 180);
       ctx.translate(-srcEyesX, -srcEyesY);
     }
 
+    // 4. Desenhar a imagem
     ctx.drawImage(imageElement, 0, 0);
     ctx.restore();
 
