@@ -155,13 +155,37 @@ export async function detectBodyLandmarks(
       Math.pow(rightShoulder.x - leftShoulder.x, 2) + Math.pow(rightShoulder.y - leftShoulder.y, 2)
     );
 
+    // Debug: verificar posições dos olhos
+    console.log('👀 Posições dos olhos:', {
+      left: { x: leftEye.x.toFixed(1), y: leftEye.y.toFixed(1) },
+      right: { x: rightEye.x.toFixed(1), y: rightEye.y.toFixed(1) },
+      diff: { x: (rightEye.x - leftEye.x).toFixed(1), y: (rightEye.y - leftEye.y).toFixed(1) }
+    });
+
     // Rotação da linha dos olhos (em graus)
-    const headRotation =
+    let headRotation =
       Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI);
 
+    // CORREÇÃO: Se rotação está próxima de ±180°, significa que os olhos estão invertidos
+    // Normalizar para o intervalo -90° a +90°
+    if (headRotation > 90) {
+      headRotation = headRotation - 180;
+    } else if (headRotation < -90) {
+      headRotation = headRotation + 180;
+    }
+
+    console.log('🔄 Rotação calculada:', headRotation.toFixed(1), '°');
+
     // Rotação da linha dos ombros (em graus)
-    const shoulderRotation =
+    let shoulderRotation =
       Math.atan2(rightShoulder.y - leftShoulder.y, rightShoulder.x - leftShoulder.x) * (180 / Math.PI);
+
+    // Mesma normalização para ombros
+    if (shoulderRotation > 90) {
+      shoulderRotation = shoulderRotation - 180;
+    } else if (shoulderRotation < -90) {
+      shoulderRotation = shoulderRotation + 180;
+    }
 
     // Inclinação da cabeça
     const headTilt = Math.abs(headRotation);

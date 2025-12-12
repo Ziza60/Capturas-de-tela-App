@@ -186,10 +186,12 @@ export async function transformToTemplateWithFixedScale(
     ctx.translate(translateX, translateY);
 
     // 3. Rotação se necessário (em torno dos olhos)
-    if (Math.abs(landmarks.headRotation) > 5) {
+    // Aplicar rotação mesmo para pequenas inclinações (>0.5°)
+    if (Math.abs(landmarks.headRotation) > 0.5) {
       ctx.translate(srcEyesX, srcEyesY);
       ctx.rotate(-landmarks.headRotation * Math.PI / 180);
       ctx.translate(-srcEyesX, -srcEyesY);
+      console.log('🔄 Aplicando rotação:', (-landmarks.headRotation).toFixed(1), '°');
     }
 
     // 4. Desenhar a imagem
