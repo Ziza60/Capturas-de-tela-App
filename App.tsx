@@ -291,13 +291,18 @@ const App: React.FC = () => {
     }
 
     // NORMALIZAÇÃO PROFISSIONAL: Sistema de padronização multi-point
+    console.log('🔍 DEBUG - enableNormalization:', enableNormalization, '| isBatchMode:', isBatchMode);
+
     if (enableNormalization && isBatchMode) {
         const completedItems = batchQueue.filter(item => item.status === 'completed' && item.rawImage);
+        console.log('🔍 DEBUG - completedItems.length:', completedItems.length);
 
         if (completedItems.length > 1) {
             try {
-                console.log('🎯 Iniciando normalização PROFISSIONAL de', completedItems.length, 'imagens...');
-                console.log('📐 Sistema: Detecção multi-point + Templates corporativos + Transformação geométrica');
+                console.log('\n═══════════════════════════════════════════════════');
+                console.log('🎯 NORMALIZAÇÃO PROFISSIONAL ATIVADA');
+                console.log('📊 Processando', completedItems.length, 'imagens');
+                console.log('═══════════════════════════════════════════════════\n');
 
                 const rawImages = completedItems.map(item => item.rawImage!);
 
@@ -306,6 +311,8 @@ const App: React.FC = () => {
                     strictMode: false,
                     showWarnings: true
                 });
+
+                console.log('\n✅ NORMALIZAÇÃO CONCLUÍDA - Resultados:', normalizedResults.length);
 
                 // Gerar relatório de qualidade
                 const qualityReport = generateQualityReport(normalizedResults);

@@ -229,7 +229,12 @@ export async function normalizeBatchProfessional(
   images: string[],
   config?: Partial<BatchNormalizationConfig>
 ): Promise<NormalizationResult[]> {
-  if (images.length === 0) return [];
+  console.log('\n🚀 normalizeBatchProfessional CHAMADA - imagens:', images.length);
+
+  if (images.length === 0) {
+    console.log('⚠️ Nenhuma imagem para processar');
+    return [];
+  }
 
   // Configuração padrão
   const fullConfig: BatchNormalizationConfig = {
@@ -240,8 +245,12 @@ export async function normalizeBatchProfessional(
     ...config
   };
 
+  console.log('⚙️ Configuração:', fullConfig);
+
   // Inicializar detector
+  console.log('🔧 Inicializando detector de pose...');
   await initializePoseDetector();
+  console.log('✅ Detector inicializado');
 
   console.log('🎯 Iniciando normalização profissional de', images.length, 'imagens...');
 
