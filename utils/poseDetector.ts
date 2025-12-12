@@ -292,22 +292,22 @@ export function validateShoulderDetection(landmarks: FullBodyLandmarks): boolean
   // Verificar se os ombros estão em posições plausíveis
   const shouldersBelowEyes = landmarks.shouldersCenter.y > landmarks.eyesCenter.y;
 
-  // Distância vertical olhos → ombros deve ser 2.5x a 6x a distância entre olhos
-  const minDistance = landmarks.eyeDistance * 2.5;
-  const maxDistance = landmarks.eyeDistance * 6.0;
+  // Distância vertical olhos → ombros deve ser 2x a 8x a distância entre olhos
+  const minDistance = landmarks.eyeDistance * 2.0;
+  const maxDistance = landmarks.eyeDistance * 8.0;
   const reasonableDistance =
     landmarks.eyeToShoulderDistance > minDistance &&
     landmarks.eyeToShoulderDistance < maxDistance;
 
-  // Largura dos ombros deve ser 1.8x a 4x a distância entre olhos
-  const minWidth = landmarks.eyeDistance * 1.8;
-  const maxWidth = landmarks.eyeDistance * 4.0;
+  // Largura dos ombros deve ser 1.5x a 6x a distância entre olhos
+  const minWidth = landmarks.eyeDistance * 1.5;
+  const maxWidth = landmarks.eyeDistance * 6.0;
   const reasonableWidth =
     landmarks.shoulderWidth > minWidth &&
     landmarks.shoulderWidth < maxWidth;
 
   // Confiança mínima
-  const goodConfidence = landmarks.confidence > 0.6;
+  const goodConfidence = landmarks.confidence > 0.4;
 
   const isValid = shouldersBelowEyes && reasonableDistance && reasonableWidth && goodConfidence;
 
