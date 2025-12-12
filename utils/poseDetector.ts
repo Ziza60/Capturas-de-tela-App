@@ -155,13 +155,6 @@ export async function detectBodyLandmarks(
       Math.pow(rightShoulder.x - leftShoulder.x, 2) + Math.pow(rightShoulder.y - leftShoulder.y, 2)
     );
 
-    // Debug: verificar posições dos olhos
-    console.log('👀 Posições dos olhos:', {
-      left: { x: leftEye.x.toFixed(1), y: leftEye.y.toFixed(1) },
-      right: { x: rightEye.x.toFixed(1), y: rightEye.y.toFixed(1) },
-      diff: { x: (rightEye.x - leftEye.x).toFixed(1), y: (rightEye.y - leftEye.y).toFixed(1) }
-    });
-
     // Rotação da linha dos olhos (em graus)
     let headRotation =
       Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI);
@@ -173,8 +166,6 @@ export async function detectBodyLandmarks(
     } else if (headRotation < -90) {
       headRotation = headRotation + 180;
     }
-
-    console.log('🔄 Rotação calculada:', headRotation.toFixed(1), '°');
 
     // Rotação da linha dos ombros (em graus)
     let shoulderRotation =

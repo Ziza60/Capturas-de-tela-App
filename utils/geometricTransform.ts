@@ -168,33 +168,22 @@ export async function transformToTemplateWithFixedScale(
     const srcEyesX = landmarks.eyesCenter.x;
     const srcEyesY = landmarks.eyesCenter.y;
 
-    console.log('🔍 Transform debug:', {
-      srcEyes: { x: srcEyesX.toFixed(1), y: srcEyesY.toFixed(1) },
-      targetEyes: { x: anchors.centerX, y: anchors.eyesY },
-      scale: scale.toFixed(3),
-      imgSize: { w: imageElement.width, h: imageElement.height },
-      rotation: landmarks.headRotation.toFixed(1)
-    });
+    // ORDEM CORRETA DAS TRANSFORMAÇÕES (para evitar deslocamento na rotação):
+    // 1. Transladar para levar os olhos para a origem
+    ctx.translate(anchors.centerX, anchors.eyesY);
 
-    // ORDEM CORRETA DAS TRANSFORMAÇÕES:
-    // 1. Primeiro escalar
-    ctx.scale(scale, scale);
-
-    // 2. Depois transladar (já no sistema escalado)
-    const translateX = (anchors.centerX / scale) - srcEyesX;
-    const translateY = (anchors.eyesY / scale) - srcEyesY;
-    ctx.translate(translateX, translateY);
-
-    // 3. Rotação se necessário (em torno dos olhos)
-    // Aplicar rotação mesmo para pequenas inclinações (>0.5°)
+    // 2. Rotação (agora em torno da posição final dos olhos)
     if (Math.abs(landmarks.headRotation) > 0.5) {
-      ctx.translate(srcEyesX, srcEyesY);
       ctx.rotate(-landmarks.headRotation * Math.PI / 180);
-      ctx.translate(-srcEyesX, -srcEyesY);
-      console.log('🔄 Aplicando rotação:', (-landmarks.headRotation).toFixed(1), '°');
     }
 
-    // 4. Desenhar a imagem
+    // 3. Escalar
+    ctx.scale(scale, scale);
+
+    // 4. Transladar de volta (agora no sistema escalado e rotacionado)
+    ctx.translate(-srcEyesX, -srcEyesY);
+
+    // 5. Desenhar a imagem
     ctx.drawImage(imageElement, 0, 0);
     ctx.restore();
 
