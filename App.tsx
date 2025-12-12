@@ -81,11 +81,19 @@ const App: React.FC = () => {
   // Modal State
   const [editingBatchItem, setEditingBatchItem] = useState<BatchItem | null>(null);
   const [analyzingBatchItem, setAnalyzingBatchItem] = useState<BatchItem | null>(null); // New state for Analysis Modal
+  const [mobileTab, setMobileTab] = useState<'config' | 'preview'>('config'); // Mobile tab state
 
   // Sync ref with state
   useEffect(() => {
     batchQueueRef.current = batchQueue;
   }, [batchQueue]);
+
+  // Auto-switch to preview tab on mobile when image is generated
+  useEffect(() => {
+    if (generatedImage || (isBatchMode && batchQueue.some(i => i.status === 'completed'))) {
+      setMobileTab('preview');
+    }
+  }, [generatedImage, batchQueue, isBatchMode]);
 
   useEffect(() => {
       if (isBatchMode && !selectedStyle) {
@@ -571,8 +579,32 @@ const App: React.FC = () => {
           </div>
         </header>
 
+        {/* MOBILE TABS - Only visible on mobile */}
+        <div className="lg:hidden flex bg-gray-800 p-1 rounded-xl border border-gray-700 mb-6">
+          <button
+            onClick={() => setMobileTab('config')}
+            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${
+              mobileTab === 'config'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            ⚙️ Configurações
+          </button>
+          <button
+            onClick={() => setMobileTab('preview')}
+            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${
+              mobileTab === 'preview'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            👁️ Preview
+          </button>
+        </div>
+
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="flex flex-col space-y-8">
+          <div className={`flex flex-col space-y-8 ${mobileTab === 'preview' ? 'hidden lg:flex' : ''}`}>
             <ImageUploader 
               onImageUpload={handleImageUpload} 
               uploadedFile={uploadedFiles}
@@ -683,7 +715,7 @@ const App: React.FC = () => {
             )}
           </div>
 
-          <div className="lg:sticky top-8 self-start flex flex-col gap-8">
+          <div className={`lg:sticky top-8 self-start flex flex-col gap-8 ${mobileTab === 'config' ? 'hidden lg:flex' : ''}`}>
             {isBatchMode ? (
                  <BatchResults 
                     queue={batchQueue} 
