@@ -172,6 +172,15 @@ export async function transformToTemplateWithFixedScale(
     const offsetX = anchors.centerX - srcEyesX * scale;
     const offsetY = anchors.eyesY - srcEyesY * scale;
 
+    console.log('🔍 Transform debug:', {
+      srcEyes: { x: srcEyesX, y: srcEyesY },
+      anchors: { centerX: anchors.centerX, eyesY: anchors.eyesY },
+      scale,
+      offset: { x: offsetX, y: offsetY },
+      imgSize: { w: imageElement.width, h: imageElement.height },
+      rotation: landmarks.headRotation
+    });
+
     // Aplicar transformação
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
