@@ -8,6 +8,66 @@ import { detectBodyLandmarks, initializePoseDetector, validateShoulderDetection,
 import type { UploadedFile } from '../types';
 
 /**
+ * Resultado da validação de normalização
+ */
+export interface NormalizationValidationResult {
+  hasFramingErrors: boolean;
+  reasons: string[];
+}
+
+/**
+ * Valida se a normalização produziu erros de enquadramento
+ * que precisam ser corrigidos pela IA
+ */
+export function validateNormalizationForBatch(
+  landmarks: FullBodyLandmarks | null,
+  imageWidth: number,
+  imageHeight: number
+): NormalizationValidationResult {
+  const reasons: string[] = [];
+
+  if (!landmarks) {
+    // Sem landmarks, não podemos validar - assumir que está OK
+    return { hasFramingErrors: false, reasons: [] };
+  }
+
+  // 1. Verificar se cabeça ocupa mais de 45% da altura
+  const headHeight = Math.abs(landmarks.noseTip.y - landmarks.eyesCenter.y) * 2.5; // Estimativa da altura da cabeça
+  const headHeightRatio = headHeight / imageHeight;
+
+  if (headHeightRatio > 0.45) {
+    reasons.push('Head occupying more than 45% of image height');
+  }
+
+  // 2. Verificar se ombros estão cortados ou ausentes
+  const shouldersValid = validateShoulderDetection(landmarks);
+  if (!shouldersValid) {
+    reasons.push('Missing or cropped shoulders');
+  }
+
+  // 3. Verificar torso cortado agressivamente
+  // Se os ombros estão muito próximos da borda inferior
+  const shoulderY = (landmarks.leftShoulder.y + landmarks.rightShoulder.y) / 2;
+  const bottomMargin = imageHeight - shoulderY;
+  const bottomMarginRatio = bottomMargin / imageHeight;
+
+  if (bottomMarginRatio < 0.1) { // Menos de 10% de margem inferior
+    reasons.push('Unnatural torso cutoff');
+  }
+
+  // 4. Verificar perspectiva extrema de selfie
+  // Se a cabeça está muito rotacionada ou inclinada
+  if (Math.abs(landmarks.headRotation) > 15) {
+    reasons.push('Extreme selfie perspective');
+  }
+
+  return {
+    hasFramingErrors: reasons.length > 0,
+    reasons
+  };
+}
+
+/**
  * Configuração do canvas de input normalizado
  */
 const NORMALIZED_INPUT_CONFIG = {

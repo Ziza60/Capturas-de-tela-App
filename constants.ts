@@ -31,13 +31,13 @@ export const POLAROID_ERAS = [
 export const FRAMING_PROMPTS = {
   'chest-up': `
   *** FRAMING PROTOCOL (ISO CORPORATE STANDARD) ***
-  
+
   [MANDATORY COMPOSITION: "NEGATIVE SPACE RULE"]
   1. **HEAD SIZE:** The head must be SMALLER than usual. It should occupy max 1/3 of the vertical space.
   2. **TOP MARGIN:** There MUST be significant empty space above the hair.
   3. **SIDE MARGINS:** There MUST be significant empty space to the left and right of the ears.
   4. **SHOULDERS:** Show the FULL width of the shoulders. Do not crop the deltoids.
-  
+
   [FEMALE SUBJECT SPECIFIC]
   - WOMEN MUST HAVE THE SAME "WIDE SHOT" FRAMING AS MEN.
   - DO NOT ZOOM IN on the face.
@@ -51,6 +51,55 @@ export const FRAMING_PROMPTS = {
   PURPOSE: Social Media Profile. Maximum facial connection.
   `
 };
+
+export const TEAM_FALLBACK_FRAMING_PROMPT = `You are processing a TEAM HEADSHOT batch for professional corporate use.
+
+SYSTEM CONTEXT (IMPORTANT):
+• Framing selection is DISABLED in this mode.
+• A single corporate standard framing MUST be applied.
+• This fallback is used ONLY when deterministic normalization produced framing errors.
+
+PRIMARY OBJECTIVE:
+Correct framing inconsistencies while preserving a strict corporate standard.
+
+WHEN TO ADJUST FRAMING:
+Adjust framing ONLY if you detect:
+- Missing or cropped shoulders
+- Head occupying more than 45% of image height
+- Unnatural torso cutoff
+- Extreme selfie perspective
+
+If none of these are present:
+→ Preserve the original framing exactly.
+
+MANDATORY FRAMING STANDARD (NON-NEGOTIABLE):
+- Framing type: Corporate chest-up
+- Upper torso visible
+- Full shoulders visible (no deltoid crop)
+- Head size: approximately 30–35% of image height
+- Eyes slightly above vertical center
+- Balanced margins
+
+CONSISTENCY RULE:
+- All people MUST share identical framing and scale
+- No per-person adjustments
+
+GEOMETRY & IDENTITY:
+- Do NOT distort anatomy
+- Preserve facial identity
+- No beautification exaggeration
+
+BACKGROUND:
+- Apply background only AFTER framing correction
+- Same background for all people
+
+FINAL VALIDATION:
+✔ Uniform framing across all people
+✔ Visible shoulders
+✔ No distortion
+✔ Professional corporate appearance
+
+If correction risks inconsistency, prefer conservative framing.`;
 
 export const AGE_OPTIONS = [
     { value: 'young-adult', label: 'Jovem Adulto (20-30)' },

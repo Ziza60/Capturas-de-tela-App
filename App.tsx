@@ -12,8 +12,9 @@ import { generateHeadshot, generateSuggestions, analyzeHeadshot } from './servic
 import { overlayLogo } from './utils/imageProcessing';
 import { normalizeBatch } from './utils/batchNormalizer';
 import { normalizeBatchProfessional, generateQualityReport, type NormalizationResult } from './utils/professionalNormalizer';
-import { preNormalizeTeamInput } from './utils/teamInputNormalizer';
-import { ASPECT_RATIO_OPTIONS, GLASSES_OPTIONS, HEADSHOT_STYLES, CLOTHING_OPTIONS, TEAM_UNIFORMS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS, POSE_OPTIONS } from './constants';
+import { preNormalizeTeamInput, validateNormalizationForBatch, type NormalizationValidationResult } from './utils/teamInputNormalizer';
+import { detectBodyLandmarks, initializePoseDetector } from './utils/poseDetector';
+import { ASPECT_RATIO_OPTIONS, GLASSES_OPTIONS, HEADSHOT_STYLES, CLOTHING_OPTIONS, TEAM_UNIFORMS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS, POSE_OPTIONS, TEAM_FALLBACK_FRAMING_PROMPT } from './constants';
 import type { AspectRatioOption, GlassesOption, StyleOption, UploadedFile, ClothingOption, BatchItem, UserProfile, LightingOption, ExpressionOption, BeautyOption, TeamSettings, PoseOption, CameraSettings } from './types';
 import GlassesOptions from './components/GlassesOptions';
 import ClothingOptions from './components/ClothingOptions';
@@ -257,6 +258,34 @@ const App: React.FC = () => {
             // PATCH A: Não enviar framingStyle quando normalização ON (evita competição com input determinístico)
             const framingForAI = (enableNormalization && isBatchMode) ? undefined : teamSettings.framingStyle;
 
+            // PATCH B: Validação de erros de enquadramento (apenas quando normalização ON)
+            let fallbackPrompt: string | undefined = undefined;
+            if (enableNormalization && isBatchMode) {
+                try {
+                    await initializePoseDetector();
+                    const img = new Image();
+                    const base64WithPrefix = inputFile.base64.startsWith('data:')
+                        ? inputFile.base64
+                        : `data:${inputFile.mimeType};base64,${inputFile.base64}`;
+
+                    await new Promise<void>((resolve, reject) => {
+                        img.onload = () => resolve();
+                        img.onerror = reject;
+                        img.src = base64WithPrefix;
+                    });
+
+                    const landmarks = await detectBodyLandmarks(img);
+                    const validation = validateNormalizationForBatch(landmarks, img.naturalWidth, img.naturalHeight);
+
+                    if (validation.hasFramingErrors) {
+                        console.log(`⚠️ Framing errors detected for ${currentItem.file.name}:`, validation.reasons);
+                        fallbackPrompt = TEAM_FALLBACK_FRAMING_PROMPT;
+                    }
+                } catch (validationError) {
+                    console.warn('Validation error (proceeding without fallback):', validationError);
+                }
+            }
+
             const rawAIResult = await generateHeadshot(
                 inputFile,
                 selectedStyle,
@@ -271,7 +300,8 @@ const App: React.FC = () => {
                 is4kMode,
                 isBatchMode ? framingForAI : undefined,
                 effectiveBackgroundColor,
-                cameraSettings
+                cameraSettings,
+                fallbackPrompt
             );
 
             let finalImage = rawAIResult;
@@ -440,10 +470,10 @@ const App: React.FC = () => {
     try {
       // Pass the entire array of uploadedFiles for Multi-Shot Reference
       const rawResult = await generateHeadshot(
-        uploadedFiles, 
-        selectedStyle, 
-        selectedGlassesOption, 
-        selectedClothingOption, 
+        uploadedFiles,
+        selectedStyle,
+        selectedGlassesOption,
+        selectedClothingOption,
         selectedAspectRatio,
         userProfile,
         selectedLighting,
@@ -453,7 +483,8 @@ const App: React.FC = () => {
         is4kMode,
         isBatchMode ? teamSettings.framingStyle : undefined,
         effectiveBackgroundColor,
-        cameraSettings
+        cameraSettings,
+        undefined // No fallback for single mode
       );
 
       setRawGeneratedImage(rawResult);

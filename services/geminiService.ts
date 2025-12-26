@@ -36,7 +36,8 @@ export async function generateHeadshot(
   is4kMode?: boolean,
   framingStyle?: FramingStyle,
   backgroundColor?: string,
-  cameraSettings?: CameraSettings
+  cameraSettings?: CameraSettings,
+  framingFallbackPrompt?: string
 ): Promise<string> {
   
   // Defensive check
@@ -345,7 +346,9 @@ Your goal is to generate a valid ID photo.
                 ${isCorporateBatch ? `
                 *** TEAM BATCH MODE - CRITICAL STANDARDIZATION PROTOCOL ***
 
-                ${!framingStyle ? `
+                ${framingFallbackPrompt ? `
+                ${framingFallbackPrompt}
+                ` : !framingStyle ? `
                 [INPUT PRE-NORMALIZED - DETERMINISTIC MODE ACTIVE]
                 - The input photo has been pre-normalized with deterministic framing
                 - DO NOT change head size, zoom level, or camera distance

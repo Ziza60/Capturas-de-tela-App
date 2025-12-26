@@ -188,12 +188,33 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, en
             <label className="block text-sm font-semibold text-indigo-200 mb-3 uppercase tracking-wider">
                 3. Enquadramento & Crop
             </label>
+
+            {/* AVISO QUANDO NORMALIZAÇÃO ESTÁ ATIVA */}
+            {enableNormalization && (
+                <div className="bg-cyan-900/40 border border-cyan-500/50 rounded-lg p-3 mb-3">
+                    <div className="flex items-start gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-xs">
+                            <p className="text-cyan-200 font-bold mb-1">Enquadramento Fixo: Padrão Corporativo (Plano Médio)</p>
+                            <p className="text-cyan-300/80 text-[10px]">
+                                Desative a normalização para personalizar o enquadramento.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
-                <button 
-                    onClick={() => onUpdate({ ...settings, framingStyle: 'chest-up' })}
+                <button
+                    onClick={() => !enableNormalization && onUpdate({ ...settings, framingStyle: 'chest-up' })}
+                    disabled={enableNormalization}
                     className={`p-3 rounded-lg border text-center transition-all ${
-                        settings.framingStyle === 'chest-up' 
-                        ? 'bg-indigo-900/50 border-indigo-400 text-white' 
+                        enableNormalization
+                        ? 'bg-slate-800 border-slate-600 text-gray-500 cursor-not-allowed opacity-50'
+                        : settings.framingStyle === 'chest-up'
+                        ? 'bg-indigo-900/50 border-indigo-400 text-white'
                         : 'bg-slate-700 border-transparent text-gray-400 hover:bg-slate-600'
                     }`}
                 >
@@ -204,11 +225,14 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, en
                     <span className="block text-[10px] opacity-70">Plano Médio (Uniforme Visível)</span>
                 </button>
 
-                <button 
-                    onClick={() => onUpdate({ ...settings, framingStyle: 'close-up' })}
+                <button
+                    onClick={() => !enableNormalization && onUpdate({ ...settings, framingStyle: 'close-up' })}
+                    disabled={enableNormalization}
                     className={`p-3 rounded-lg border text-center transition-all ${
-                        settings.framingStyle === 'close-up' 
-                        ? 'bg-indigo-900/50 border-indigo-400 text-white' 
+                        enableNormalization
+                        ? 'bg-slate-800 border-slate-600 text-gray-500 cursor-not-allowed opacity-50'
+                        : settings.framingStyle === 'close-up'
+                        ? 'bg-indigo-900/50 border-indigo-400 text-white'
                         : 'bg-slate-700 border-transparent text-gray-400 hover:bg-slate-600'
                     }`}
                 >
@@ -219,7 +243,7 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, en
                     <span className="block text-[10px] opacity-70">Close-up Rosto (Sem Uniforme)</span>
                 </button>
             </div>
-            {settings.framingStyle === 'close-up' && settings.logoPosition.includes('chest') && (
+            {!enableNormalization && settings.framingStyle === 'close-up' && settings.logoPosition.includes('chest') && (
                 <p className="text-[10px] text-yellow-400 mt-2 bg-yellow-900/30 p-2 rounded">
                     ⚠️ Alerta: O "Close-up" pode cortar a área do peito. O logo no uniforme pode não aparecer. Considere mudar o logo para "Marca D'água" (Canto).
                 </p>
