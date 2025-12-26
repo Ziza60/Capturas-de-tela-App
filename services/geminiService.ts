@@ -345,30 +345,36 @@ Your goal is to generate a valid ID photo.
                 ${isCorporateBatch ? `
                 *** TEAM BATCH MODE - CRITICAL STANDARDIZATION PROTOCOL ***
 
-                [INPUT ALREADY NORMALIZED]
-                - The input photo has been pre-normalized with consistent framing
-                - DO NOT change pose, camera distance, or framing from input
-                - Keep exact scale and orientation as provided
+                ${!framingStyle ? `
+                [INPUT PRE-NORMALIZED - DETERMINISTIC MODE ACTIVE]
+                - The input photo has been pre-normalized with deterministic framing
+                - DO NOT change head size, zoom level, or camera distance
+                - Keep exact framing and scale from input
+                - Do not zoom in or out
+                - Do not change head size or shoulder height
 
-                [DETERMINISTIC GENERATION RULES]
-                1. PRESERVE INPUT FRAMING: Keep head size and position exactly as in input
-                2. NO POSE VARIATIONS: Generate body matching the input head position (straight-on, no 3/4 angle)
-                3. NO ANGLE CHANGES: Camera must remain at exact same distance and angle
-                4. NEUTRAL POSTURE: Shoulders parallel to camera, head vertical
+                [STRICT PRESERVATION RULES]
+                1. PRESERVE INPUT GEOMETRY: Keep exact head size and position from input
+                2. NO REFRAMING: Do not apply any cropping or zoom adjustments
+                3. FIXED CAMERA: Camera at exact same distance and angle as input
+                4. BODY GENERATION ONLY: Generate professional body/clothing matching input head position
+                ` : `
+                [STANDARD BATCH MODE]
+                - Generate professional corporate headshot
+                - FRAMING: ${framingStyle === 'close-up' ? FRAMING_PROMPTS['close-up'] : FRAMING_PROMPTS['chest-up']}
+                `}
 
-                [CONSISTENCY REQUIREMENTS]
+                [CONSISTENCY REQUIREMENTS FOR ALL BATCH]
                 - Head-and-shoulders composition
                 - Straight-on pose (0° body rotation)
                 - Neutral professional expression
+                - Shoulders parallel to camera, head vertical
                 - Consistent lighting style across batch
 
-                [PROHIBITED]
-                - Do NOT apply creative cropping or dynamic framing
+                [PROHIBITED IN BATCH MODE]
+                - Do NOT apply dramatic angles or perspectives
                 - Do NOT tilt head or rotate body
-                - Do NOT vary camera distance from input
-                - Do NOT add dramatic angles or perspectives
-
-                FRAMING: ${framingStyle === 'close-up' ? FRAMING_PROMPTS['close-up'] : FRAMING_PROMPTS['chest-up']}
+                - Do NOT add cinematic or dynamic variations
                 ` : ''}
 
                 ${userProfile?.gender ? `GENDER CALIBRATION: Ensure subject looks ${userProfile.gender}.` : ''}

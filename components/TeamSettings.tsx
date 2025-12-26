@@ -19,7 +19,7 @@ const BACKGROUND_PRESETS = [
   { label: 'Azul', color: '#1a73e8' },
 ];
 
-const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, enableNormalization = true, onToggleNormalization }) => {
+const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, enableNormalization, onToggleNormalization }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,7 +68,7 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, en
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-cyan-200">Normalização Profissional</h4>
-                  <p className="text-[10px] text-gray-400">Sistema multi-point: olhos, ombros, rotação e escala</p>
+                  <p className="text-[10px] text-gray-400">Pré + pós-normalização multi-point (olhos, ombros, rotação)</p>
                 </div>
               </div>
               <button
@@ -86,9 +86,9 @@ const TeamSettingsPanel: React.FC<TeamSettingsProps> = ({ settings, onUpdate, en
             </div>
             {enableNormalization && (
               <div className="text-[10px] text-cyan-300 bg-cyan-950/50 p-2 rounded mt-2 leading-relaxed">
-                <strong>Sistema Ativo:</strong> Detecção multi-point + Templates corporativos fixos + Transformação geométrica forçada
+                <strong>Pipeline Completo Ativo:</strong> Pré-normalização determinística (input padronizado) + Pós-normalização profissional (dual-anchor)
                 <br />
-                <span className="text-cyan-400">→ Olhos: mesma altura (±2px) • Ombros nivelados (±3px) • Tamanho de cabeça uniforme (±5%)</span>
+                <span className="text-cyan-400">→ Alvo: Olhos alinhados • Ombros nivelados • Cabeças com tamanho consistente • Postura uniforme</span>
               </div>
             )}
           </div>

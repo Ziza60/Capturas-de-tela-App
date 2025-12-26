@@ -249,8 +249,13 @@ const App: React.FC = () => {
         const currentItem = batchQueueRef.current[i];
 
         try {
-            // PATCH 2: Pré-normalizar input antes de enviar para IA (modo equipe)
-            const inputFile = await preNormalizeTeamInput(currentItem.file);
+            // PATCH A: Pré-normalização CONDICIONAL (apenas quando enableNormalization ON)
+            const inputFile = (enableNormalization && isBatchMode)
+                ? await preNormalizeTeamInput(currentItem.file)
+                : currentItem.file;
+
+            // PATCH A: Não enviar framingStyle quando normalização ON (evita competição com input determinístico)
+            const framingForAI = (enableNormalization && isBatchMode) ? undefined : teamSettings.framingStyle;
 
             const rawAIResult = await generateHeadshot(
                 inputFile,
@@ -264,7 +269,7 @@ const App: React.FC = () => {
                 selectedBeauty,
                 selectedPose,
                 is4kMode,
-                isBatchMode ? teamSettings.framingStyle : undefined,
+                isBatchMode ? framingForAI : undefined,
                 effectiveBackgroundColor,
                 cameraSettings
             );
