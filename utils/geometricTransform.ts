@@ -133,6 +133,98 @@ export async function applyGeometricTransform(
 }
 
 /**
+ * PATCH 3: Transformação com âncora dupla (olhos + ombros)
+ * Usa dois pontos para definir rotação, escala e translação com mais precisão
+ */
+export async function transformToTemplateWithDualAnchor(
+  imageElement: HTMLImageElement,
+  landmarks: FullBodyLandmarks,
+  template: CorporateTemplate,
+  fixedScale: number,
+  backgroundColor: string = '#F5F5F5'
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+      reject(new Error('Falha ao criar contexto canvas'));
+      return;
+    }
+
+    canvas.width = template.width;
+    canvas.height = template.height;
+
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const anchors = getAbsoluteAnchorPoints(template);
+
+    // ESTRATÉGIA DUAL-ANCHOR:
+    // 1. Calcular vetor source: olhos → ombros
+    // 2. Calcular vetor target: posição alvo dos olhos → posição alvo dos ombros
+    // 3. Calcular rotação necessária para alinhar os vetores
+    // 4. Aplicar escala baseada na distância entre os pontos
+
+    const srcEyesX = landmarks.eyesCenter.x;
+    const srcEyesY = landmarks.eyesCenter.y;
+    const srcShouldersX = landmarks.shouldersCenter.x;
+    const srcShouldersY = landmarks.shouldersCenter.y;
+
+    // Vetor source (olhos → ombros)
+    const srcVectorX = srcShouldersX - srcEyesX;
+    const srcVectorY = srcShouldersY - srcEyesY;
+    const srcDistance = Math.sqrt(srcVectorX * srcVectorX + srcVectorY * srcVectorY);
+
+    // Vetor target (posição alvo)
+    const targetEyesX = anchors.centerX;
+    const targetEyesY = anchors.eyesY;
+    const targetShouldersX = anchors.centerX; // Ombros devem estar centrados
+    const targetShouldersY = anchors.shouldersY;
+
+    const targetVectorX = targetShouldersX - targetEyesX;
+    const targetVectorY = targetShouldersY - targetEyesY;
+    const targetDistance = Math.sqrt(targetVectorX * targetVectorX + targetVectorY * targetVectorY);
+
+    // Calcular ângulo de rotação necessário
+    const srcAngle = Math.atan2(srcVectorY, srcVectorX);
+    const targetAngle = Math.atan2(targetVectorY, targetVectorX);
+    const rotation = targetAngle - srcAngle;
+
+    // Usar escala fixa (já calculada pelo batch)
+    const scale = fixedScale;
+
+    console.log('🎯 Dual-anchor transform:', {
+      srcAngle: (srcAngle * 180 / Math.PI).toFixed(1) + '°',
+      targetAngle: (targetAngle * 180 / Math.PI).toFixed(1) + '°',
+      rotation: (rotation * 180 / Math.PI).toFixed(1) + '°',
+      scale: scale.toFixed(4)
+    });
+
+    ctx.save();
+
+    // Aplicar transformações
+    // 1. Mover para posição alvo dos olhos
+    ctx.translate(targetEyesX, targetEyesY);
+
+    // 2. Rotacionar
+    ctx.rotate(rotation);
+
+    // 3. Escalar
+    ctx.scale(scale, scale);
+
+    // 4. Desenhar imagem com olhos na origem
+    ctx.translate(-srcEyesX, -srcEyesY);
+    ctx.drawImage(imageElement, 0, 0);
+
+    ctx.restore();
+
+    const resultBase64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+    resolve(resultBase64);
+  });
+}
+
+/**
  * Versão com ESCALA FIXA para garantir padronização absoluta
  */
 export async function transformToTemplateWithFixedScale(

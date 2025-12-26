@@ -20,7 +20,7 @@ import {
   type CorporateTemplate,
   type ValidationResult
 } from './corporateTemplate';
-import { transformToTemplate, transformToTemplateWithFixedScale } from './geometricTransform';
+import { transformToTemplate, transformToTemplateWithFixedScale, transformToTemplateWithDualAnchor } from './geometricTransform';
 
 /**
  * Resultado da normalização profissional
@@ -158,15 +158,27 @@ export async function normalizeHeadshotProfessional(
         let normalizedImage: string;
 
         if (referenceMetrics?.fixedScale) {
-          // Usar escala FIXA para garantir padronização absoluta
-          console.log('🔒 Usando escala fixa:', referenceMetrics.fixedScale.toFixed(4));
-          normalizedImage = await transformToTemplateWithFixedScale(
-            img,
-            analysis.landmarks,
-            config.template,
-            referenceMetrics.fixedScale,
-            config.backgroundColor
-          );
+          // PATCH 3: Usar dual-anchor (olhos + ombros) quando ombros forem válidos
+          if (shoulderDetectionValid) {
+            console.log('🎯 Usando transformação DUAL-ANCHOR (olhos + ombros)');
+            normalizedImage = await transformToTemplateWithDualAnchor(
+              img,
+              analysis.landmarks,
+              config.template,
+              referenceMetrics.fixedScale,
+              config.backgroundColor
+            );
+          } else {
+            // Fallback: usar apenas olhos (transformação single-anchor)
+            console.log('🔒 Usando escala fixa (single-anchor - apenas olhos)');
+            normalizedImage = await transformToTemplateWithFixedScale(
+              img,
+              analysis.landmarks,
+              config.template,
+              referenceMetrics.fixedScale,
+              config.backgroundColor
+            );
+          }
         } else {
           // Calcular transformação individual
           normalizedImage = await transformToTemplate(

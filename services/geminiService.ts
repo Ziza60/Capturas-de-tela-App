@@ -343,37 +343,32 @@ Your goal is to generate a valid ID photo.
                 ${aspectRatioOption ? `ASPECT RATIO: ${aspectRatioOption.prompt}` : ''}
                 
                 ${isCorporateBatch ? `
-                *** BATCH CONSISTENCY ENFORCEMENT ***
-                1. IGNORE ORIGINAL CROP.
-                2. ${framingStyle === 'close-up' ? FRAMING_PROMPTS['close-up'] : FRAMING_PROMPTS['chest-up']}
+                *** TEAM BATCH MODE - CRITICAL STANDARDIZATION PROTOCOL ***
 
-                *** CRITICAL: BODY ORIENTATION STANDARDIZATION ***
-                [MANDATORY REQUIREMENTS FOR TEAM BATCH MODE]
+                [INPUT ALREADY NORMALIZED]
+                - The input photo has been pre-normalized with consistent framing
+                - DO NOT change pose, camera distance, or framing from input
+                - Keep exact scale and orientation as provided
 
-                BODY POSE PROTOCOL:
-                - Body MUST face directly forward at 0° rotation (never 3/4 or side angle)
-                - Shoulders MUST be parallel to the camera plane (both shoulders equally visible)
-                - Torso MUST be square to camera (no rotation or twist)
-                - Head MUST be straight with no tilt (ears at same height)
-                - Eyes looking directly at camera (straight ahead, not to the side)
+                [DETERMINISTIC GENERATION RULES]
+                1. PRESERVE INPUT FRAMING: Keep head size and position exactly as in input
+                2. NO POSE VARIATIONS: Generate body matching the input head position (straight-on, no 3/4 angle)
+                3. NO ANGLE CHANGES: Camera must remain at exact same distance and angle
+                4. NEUTRAL POSTURE: Shoulders parallel to camera, head vertical
 
-                IGNORE SOURCE PHOTO ORIENTATION:
-                - If reference photo shows body at angle → OVERRIDE and generate frontal
-                - If reference photo shows head tilted → STRAIGHTEN to vertical
-                - If reference photo is 3/4 pose → GENERATE full frontal instead
-                - DO NOT replicate the original body angle or pose direction
+                [CONSISTENCY REQUIREMENTS]
+                - Head-and-shoulders composition
+                - Straight-on pose (0° body rotation)
+                - Neutral professional expression
+                - Consistent lighting style across batch
 
-                CONSISTENCY ENFORCEMENT:
-                - ALL team members MUST have IDENTICAL body orientation (0° frontal)
-                - ALL shoulders MUST be at SAME angle (parallel to camera)
-                - ALL heads MUST be vertical (no left/right tilt)
-                - ZERO variation in body rotation between batch subjects
-                - This creates professional team uniformity
+                [PROHIBITED]
+                - Do NOT apply creative cropping or dynamic framing
+                - Do NOT tilt head or rotate body
+                - Do NOT vary camera distance from input
+                - Do NOT add dramatic angles or perspectives
 
-                VERIFICATION:
-                - Before finalizing, confirm: Would this person fit seamlessly in a corporate team grid?
-                - If body is angled even slightly → REJECT and regenerate frontal
-                - All 6 people in batch should look like they were photographed in same studio session
+                FRAMING: ${framingStyle === 'close-up' ? FRAMING_PROMPTS['close-up'] : FRAMING_PROMPTS['chest-up']}
                 ` : ''}
 
                 ${userProfile?.gender ? `GENDER CALIBRATION: Ensure subject looks ${userProfile.gender}.` : ''}

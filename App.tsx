@@ -12,6 +12,7 @@ import { generateHeadshot, generateSuggestions, analyzeHeadshot } from './servic
 import { overlayLogo } from './utils/imageProcessing';
 import { normalizeBatch } from './utils/batchNormalizer';
 import { normalizeBatchProfessional, generateQualityReport, type NormalizationResult } from './utils/professionalNormalizer';
+import { preNormalizeTeamInput } from './utils/teamInputNormalizer';
 import { ASPECT_RATIO_OPTIONS, GLASSES_OPTIONS, HEADSHOT_STYLES, CLOTHING_OPTIONS, TEAM_UNIFORMS, LIGHTING_OPTIONS, EXPRESSION_OPTIONS, BEAUTY_OPTIONS, POSE_OPTIONS } from './constants';
 import type { AspectRatioOption, GlassesOption, StyleOption, UploadedFile, ClothingOption, BatchItem, UserProfile, LightingOption, ExpressionOption, BeautyOption, TeamSettings, PoseOption, CameraSettings } from './types';
 import GlassesOptions from './components/GlassesOptions';
@@ -236,18 +237,23 @@ const App: React.FC = () => {
         ? teamSettings.backgroundColor 
         : undefined;
 
-    const itemsToProcessIndices = batchQueue.map((item, index) => item.status === 'pending' ? index : -1).filter(i => i !== -1);
+    // PATCH 1: Usar batchQueueRef.current para evitar snapshot stale
+    const itemsToProcessIndices = batchQueueRef.current.map((item, index) => item.status === 'pending' ? index : -1).filter(i => i !== -1);
 
     for (const i of itemsToProcessIndices) {
-        setBatchQueue(current => current.map((item, idx) => 
+        setBatchQueue(current => current.map((item, idx) =>
             idx === i ? { ...item, status: 'processing', error: undefined } : item
         ));
 
-        const currentItem = batchQueue[i];
+        // CRITICAL: Sempre ler do ref para ter o item atualizado
+        const currentItem = batchQueueRef.current[i];
 
         try {
+            // PATCH 2: Pré-normalizar input antes de enviar para IA (modo equipe)
+            const inputFile = await preNormalizeTeamInput(currentItem.file);
+
             const rawAIResult = await generateHeadshot(
-                currentItem.file,
+                inputFile,
                 selectedStyle,
                 selectedGlassesOption,
                 activeClothingOption,
@@ -304,7 +310,8 @@ const App: React.FC = () => {
     if (enableNormalization && isBatchMode) {
         setIsNormalizing(true);
 
-        const completedItems = batchQueue.filter(item => item.status === 'completed' && item.rawImage);
+        // PATCH 1: Usar batchQueueRef.current para pegar todos os itens completados (não snapshot)
+        const completedItems = batchQueueRef.current.filter(item => item.status === 'completed' && item.rawImage);
 
         console.log('\n🔍 DEBUG - enableNormalization:', enableNormalization);
         console.log('🔍 DEBUG - isBatchMode:', isBatchMode);
